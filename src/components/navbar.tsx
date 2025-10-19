@@ -1,13 +1,25 @@
-export default function Navbar() {
+import { Menu } from "lucide-react";
+
+export default function Navbar({ toggleSidebar }:{ toggleSidebar: () => void }) {
   return (
-    <header className="w-full bg-white border-b border-gray-200 shadow-sm">
+    <header className="w-full bg-white border-b border-gray-200 shadow-sm z-50">
       <nav className="flex flex-wrap items-center justify-between px-4 py-3">
-        
-        <div className="flex items-center space-x-2">
+
+
+        <div className="flex items-center space-x-3">
+
+          <button
+            onClick={toggleSidebar}
+            className="text-blue-700 p-2 rounded-md hover:bg-gray-100 transition"
+          >
+            <Menu size={22} />
+          </button>
+
           <span className="text-lg sm:text-xl font-semibold text-blue-700">
-            Quimica Uleam
+            Química Uleam
           </span>
         </div>
+
 
         <div className="w-full mt-2 sm:mt-0 sm:w-auto sm:flex-1 sm:flex sm:justify-center">
           <input
