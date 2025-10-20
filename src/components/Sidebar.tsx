@@ -24,4 +24,3 @@ export default function Sidebar({ open }: {open: boolean}) {
     </aside>
   );
 }
-
