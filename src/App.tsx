@@ -1,35 +1,51 @@
-import './App.css'
-import Navbar from './components/navbar'
-import Footer from './components/Footer'
-import Sidebar from './components/Sidebar'
-import { useState } from 'react'
+import "./App.css";
+import Navbar from "./components/navbar";
+import Footer from "./components/Footer";
+import Sidebar from "./components/Sidebar";
+import { useState } from "react";
+import MainContent from "./components/MainContent";
+import "./config/i18n";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  const [textSizeLarge, setTextSizeLarge] = useState<boolean>(false);
+  const [highContrast, setHighContrast] = useState<boolean>(false);
+
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar toggleSidebar={()=> setSidebarOpen(!sidebarOpen)} />
+    <div
+      className={`flex flex-col min-h-screen transition-colors duration-300 ${
+        highContrast ? "bg-black text-yellow-300" : "bg-gray-50 text-gray-900"
+      }`}
+    >
+      {/* Navbar fijo arriba */}
+      <Navbar
+        toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        highContrast={highContrast}
+      />
 
-      <div className="flex flex-1">
-        <Sidebar open={sidebarOpen} />
+      {/* Contenedor principal */}
+      <div className="flex flex-1 relative">
+        <Sidebar
+          open={sidebarOpen}
+          textSizeLarge={textSizeLarge}
+          setTextSizeLarge={setTextSizeLarge}
+          highContrast={highContrast}
+          setHighContrast={setHighContrast}
+        />
 
-        <main className={`flex-1 p-6 bg-gray-50 transition-all duration-300 ${
+        <main
+          className={`flex-1 p-6 transition-all duration-300 ${
             sidebarOpen ? "lg:ml-64" : "ml-0"
-          }`}
-          >
-          <h1 className="text-2xl font-semibold mb-4">
-            Bienvenido a Química Uleam
-          </h1>
-          <p className="text-gray-700">
-            Aquí puedes colocar el contenido principal o las páginas del sistema.
-          </p>
+          } ${highContrast ? "bg-black text-yellow-300" : "bg-gray-50 text-gray-900"}`}
+        >
+          <MainContent textSizeLarge={textSizeLarge} highContrast={highContrast} />
         </main>
       </div>
 
-      <Footer />
+      <Footer highContrast={highContrast} />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
 

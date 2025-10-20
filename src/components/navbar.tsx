@@ -1,40 +1,90 @@
-import { Menu } from "lucide-react";
+import { Menu, Atom } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { useState } from "react";
 
-export default function Navbar({ toggleSidebar }:{ toggleSidebar: () => void }) {
+export default function Navbar({
+  toggleSidebar,
+  highContrast,
+}: {
+  toggleSidebar: () => void;
+  highContrast: boolean;
+}) {
+  const { i18n } = useTranslation();
+  const [language, setLanguage] = useState("es");
+
+  const toggleLanguage = () => {
+    const newLang = language === "es" ? "en" : "es";
+    i18n.changeLanguage(newLang);
+    setLanguage(newLang);
+  };
+
   return (
-    <header className="w-full bg-white border-b border-gray-200 shadow-sm z-50">
+    <header
+      className={`w-full border-b shadow-sm z-50 transition-colors duration-300 ${
+        highContrast
+          ? "bg-black border-yellow-300 text-yellow-300"
+          : "bg-white border-gray-200 text-blue-700"
+      }`}
+    >
       <nav className="flex flex-wrap items-center justify-between px-4 py-3">
-
-
         <div className="flex items-center space-x-3">
-
           <button
             onClick={toggleSidebar}
-            className="text-blue-700 p-2 rounded-md hover:bg-gray-100 transition"
+            className={`p-2 rounded-md transition ${
+              highContrast
+                ? "text-yellow-300 hover:bg-yellow-900"
+                : "text-blue-700 hover:bg-gray-100"
+            }`}
           >
             <Menu size={22} />
           </button>
-
-          <span className="text-lg sm:text-xl font-semibold text-blue-700">
-            Química Uleam
-          </span>
+          <a href="#" className="flex items-center space-x-1">
+            <Atom size={22} />
+          </a>
+          <a href="#">
+            <span
+              className={`text-lg sm:text-xl font-semibold transition ${
+                highContrast ? "text-yellow-300" : "text-blue-700"
+              }`}
+            >
+              Química Uleam
+            </span>
+          </a>
         </div>
-
 
         <div className="w-full mt-2 sm:mt-0 sm:w-auto sm:flex-1 sm:flex sm:justify-center">
           <input
             type="text"
-            placeholder="Buscar..."
-            className="w-full sm:max-w-md px-4 py-2 text-sm border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder={language === "es" ? "Buscar..." : "Search..."}
+            className={`w-full sm:max-w-md px-4 py-2 text-sm border rounded-full focus:outline-none focus:ring-2 transition ${
+              highContrast
+                ? "bg-black border-yellow-300 text-yellow-300 focus:ring-yellow-400 placeholder-yellow-500"
+                : "bg-white border-gray-300 text-gray-900 focus:ring-blue-400 placeholder-gray-400"
+            }`}
           />
         </div>
 
         <div className="flex items-center space-x-2 mt-2 sm:mt-0">
-          <button className="flex items-center space-x-1 px-3 py-1 border border-gray-300 rounded-md hover:bg-gray-100 transition">
-            <span role="img" aria-label="globe">🌐</span>
-            <span className="text-sm font-medium">EN</span>
+          <button
+            onClick={toggleLanguage}
+            className={`flex items-center space-x-1 px-3 py-1 border rounded-md transition ${
+              highContrast
+                ? "border-yellow-300 text-yellow-300 hover:bg-yellow-900"
+                : "border-gray-300 text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            <span role="img" aria-label="globe">
+              🌐
+            </span>
+            <span className="text-sm font-medium">{language.toUpperCase()}</span>
           </button>
-          <button className="px-4 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition">
+          <button
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition ${
+              highContrast
+                ? "bg-yellow-300 text-black hover:bg-yellow-400"
+                : "bg-blue-600 text-white hover:bg-blue-700"
+            }`}
+          >
             Entrar
           </button>
         </div>
