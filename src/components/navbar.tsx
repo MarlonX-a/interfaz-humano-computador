@@ -1,6 +1,7 @@
 import { Menu, Atom } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Navbar({
   toggleSidebar,
@@ -17,6 +18,7 @@ export default function Navbar({
     i18n.changeLanguage(newLang);
     setLanguage(newLang);
   };
+  const navigate = useNavigate();
 
   return (
     <header
@@ -46,6 +48,7 @@ export default function Navbar({
               className={`text-lg sm:text-xl font-semibold transition ${
                 highContrast ? "text-yellow-300" : "text-blue-700"
               }`}
+              onClick={() => navigate('/app')}
             >
               Química Uleam
             </span>
@@ -84,6 +87,7 @@ export default function Navbar({
                 ? "bg-yellow-300 text-black hover:bg-yellow-400"
                 : "bg-blue-600 text-white hover:bg-blue-700"
             }`}
+            onClick={() => navigate('/login')}
           >
             Entrar
           </button>

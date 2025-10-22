@@ -1,10 +1,19 @@
-export default function Footer() {
+
+type FooterProps = {
+  highContrast?: boolean;
+};
+
+export default function Footer({ highContrast = false }: FooterProps) {
+  const bg = highContrast ? "bg-black" : "bg-blue-900";
+  const sectionBg = highContrast ? "bg-black" : "bg-blue-950";
+  const text = highContrast ? "text-yellow-300" : "text-white";
+  const border = highContrast ? "border-yellow-700" : "border-blue-700";
+
   return (
-    <footer className="bg-blue-900 text-white mt-10">
-      <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        
+    <footer className={`${bg} ${text} mt-10`}>
+      <div className={`max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8`}>
         <div>
-          <h3 className="text-lg font-semibold mb-3 border-b border-blue-700 pb-1">
+          <h3 className={`text-lg font-semibold mb-3 border-b ${border} pb-1`}>
             Información institucional
           </h3>
           <ul className="space-y-1 text-sm">
@@ -18,7 +27,7 @@ export default function Footer() {
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold mb-3 border-b border-blue-700 pb-1">
+          <h3 className={`text-lg font-semibold mb-3 border-b ${border} pb-1`}>
             Soporte / Contacto
           </h3>
           <ul className="space-y-2 text-sm">
@@ -29,7 +38,7 @@ export default function Footer() {
         </div>
 
         <div>
-          <h3 className="text-lg font-semibold mb-3 border-b border-blue-700 pb-1">
+          <h3 className={`text-lg font-semibold mb-3 border-b ${border} pb-1`}>
             Política y Términos de Uso
           </h3>
           <ul className="space-y-2 text-sm">
@@ -40,7 +49,7 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="bg-blue-950 text-center py-3 text-xs border-t border-blue-800">
+      <div className={`${sectionBg} text-center py-3 text-xs border-t ${highContrast ? "border-yellow-700" : "border-blue-800"}`}>
         © {new Date().getFullYear()} Universidad Laica Eloy Alfaro de Manabí – Todos los derechos reservados
       </div>
     </footer>
