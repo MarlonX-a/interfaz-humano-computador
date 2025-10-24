@@ -12,7 +12,9 @@ import {
   Volume2,
   Type,
   Contrast,
+  Plus,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 export default function Sidebar({
@@ -33,6 +35,7 @@ export default function Sidebar({
     aprende: false,
     accesibilidad: false,
   });
+  const navigate = useNavigate();
 
   const toggleMenu = (menu: string) => {
     setOpenMenus((prev) => ({ ...prev, [menu]: !prev[menu] }));
@@ -146,6 +149,16 @@ export default function Sidebar({
         >
           <Settings size={18} /> <span>{t("settings")}</span>
         </a>
+
+        {/* Añadir contenido */}
+        <button
+          onClick={() => navigate("/add-content")}
+          className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+        >
+          <Plus size={16} /> <span>{t("addContent")}</span>
+        </button>
+
+        
       </nav>
     </aside>
   );

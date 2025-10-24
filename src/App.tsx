@@ -7,8 +7,10 @@ import { useState } from "react";
 import MainContent from "./components/MainContent";
 import "./config/i18n";
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Login from "./pages/Login";
+import Login from "./pages/login";
 import Register from "./pages/register";
+import AddContentPage from "./pages/addContent";
+import { Toaster } from "react-hot-toast";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
@@ -46,9 +48,11 @@ function App() {
               <Route path="/" element={<MainContent textSizeLarge={textSizeLarge} highContrast={highContrast} />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register highContrast={highContrast} />} />
+              <Route path="/add-content" element={<AddContentPage textSizeLarge={textSizeLarge} highContrast={highContrast} />} />
               {/* redirigir rutas desconocidas a / */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            <Toaster />
           </main>
         </div>
 
