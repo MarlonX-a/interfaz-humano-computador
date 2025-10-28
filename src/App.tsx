@@ -74,8 +74,8 @@ function App() {
           >
             <Routes>
               <Route path="/" element={<MainContent textSizeLarge={textSizeLarge} highContrast={highContrast} />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register highContrast={highContrast} />} />
+              <Route path="/login" element={<Login textSizeLarge={textSizeLarge} highContrast={highContrast} />} />
+              <Route path="/register" element={<Register textSizeLarge={textSizeLarge} highContrast={highContrast} />} />
               <Route path="/add-content" element={<AddContentPage textSizeLarge={textSizeLarge} highContrast={highContrast} />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
