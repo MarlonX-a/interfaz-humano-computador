@@ -4,7 +4,7 @@
   "molecules": "Molecules",
   "atoms": "Atoms",
   "periodicTable": "Periodic Table",
-  "chemicalReactions": "Chemical Reactions",
+  "chemicalReactions": "Chemical Reactions", 
   "experiments": "Experiments",
   "accessibility": "Accessibility",
   "visualAlerts": "Visual Alerts",
@@ -26,7 +26,7 @@
   "addResource": "Add resource",
   "safetyLabel": "Safety level",
   "safetyLow": "Low",
-  "safetyMedium": "Medium",
+  "safetyMedium": "Medium", 
   "safetyHigh": "High",
   "authorLabel": "Author",
   "newBtn": "New",
@@ -43,15 +43,76 @@
   "voiceReadingEnabled": "Voice reading enabled (simulation)",
   "welcome": "Welcome to QuimicaUleam",
   "exploreChemistry": "Explore the fascinating world of basic chemistry",
-  "learnInteractive": "Learn chemistry interactively with 3D models and augmented reality. Visualize molecules, atoms, and reactions directly from your browser.",
-  "sessionStarted": "Session started successfully.",
+  "learnInteractive": "Learn chemistry interactively with 3D models and augmented reality. Visualize molecules, atoms and reactions directly from your browser.",
   "news": "News",
-  "newsHelp": "Here you will find the latest news, new models, and experiments available in QuimicaUleam.",
-  "newWaterMolecule": "New 3D Water Molecule",
-  "newWaterMoleculeDesc": "Explore the molecular structure of H₂O with our new interactive model.",
-  "updatedPeriodicTable": "Updated Periodic Table",
-  "updatedPeriodicTableDesc": "Access detailed information about all chemical elements.",
-  "virtualExperiments": "Virtual Experiments Available",
-  "virtualExperimentsDesc": "Perform simple chemical experiments directly from your browser.",
-  "searchPlaceholder": "Search..."
+  "newsHelp": "Here you will find the latest news, new models and experiments available in QuimicaUleam.",
+
+  "register": {
+    "title": "Create Account",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "email": "Email",
+    "confirmEmail": "Confirm Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "phone": "Phone",
+    "role": "Role",
+    "placeholders": {
+      "firstName": "Your first name",
+      "lastName": "Your last name", 
+      "email": "user@example.com",
+      "confirmEmail": "Repeat your email",
+      "password": "Minimum 8 characters",
+      "confirmPassword": "Repeat your password",
+      "phone": "+1 555XXXXXXX"
+    },
+    "terms": "I accept the terms and conditions",
+    "roles": {
+      "student": "Student",
+      "teacher": "Teacher",
+      "other": "Other"
+    },
+    "buttons": {
+      "create": "Create Account",
+      "creating": "Creating...",
+      "haveAccount": "I already have an account"
+    },
+    "success": "Registration successful. Redirecting to login...",
+    "errors": {
+      "required": {
+        "firstName": "First name is required",
+        "lastName": "Last name is required",
+        "email": "Email is required",
+        "password": "Password is required",
+        "phone": "Phone is required",
+        "terms": "You must accept the terms"
+      },
+      "invalid": {
+        "email": "Invalid email",
+        "phone": "Invalid phone number",
+        "password": "Must be at least 6 characters"
+      },
+      "mismatch": {
+        "email": "Emails do not match",
+        "password": "Passwords do not match"
+      }
+    }
+  },
+
+  "login": {
+    "title": "Login",
+    "email": "Email",
+    "emailPlaceholder": "user@example.com",
+    "password": "Password", 
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "submit": "Sign in",
+    "success": "Login successful ✅",
+    "errors": {
+      "allFields": "Please complete all fields.",
+      "invalid": "Invalid email or password ❌"
+    }
+  }
 }
