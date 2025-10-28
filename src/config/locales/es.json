@@ -1,4 +1,68 @@
 {
+  "addcontent": {
+    "title": "Añadir Contenido",
+    "form": {
+      "title": "Título",
+      "type": "Tipo",
+      "author": "Autor",
+      "difficulty": "Nivel de dificultad",
+      "description": "Descripción",
+      "tags": "Etiquetas",
+      "resources": "Recursos",
+      "addResource": "Agregar recurso",
+      "clear": "Limpiar",
+      "save": "Guardar",
+      "update": "Actualizar",
+      "typeOptions": {
+        "molecule": "Molécula",
+        "atom": "Átomo",
+        "experiment": "Experimento",
+        "article": "Artículo"
+      },
+      "difficultyOptions": {
+        "easy": "Fácil",
+        "medium": "Media",
+        "hard": "Difícil"
+      }
+    },
+    "table": {
+      "filter": "Filtrar...",
+      "noRecords": "No hay registros",
+      "columns": {
+        "title": "Título",
+        "type": "Tipo",
+        "difficulty": "Nivel dificultad",
+        "tags": "Etiquetas",
+        "actions": "Acciones"
+      },
+      "actions": {
+        "edit": "Editar",
+        "delete": "Eliminar"
+      }
+    },
+    "history": {
+      "title": "Historial de cambios",
+      "noHistory": "No hay historial",
+      "columns": {
+        "record": "Registro",
+        "action": "Acción",
+        "author": "Autor",
+        "date": "Fecha"
+      }
+    },
+    "validation": {
+      "titleRequired": "Título requerido",
+      "authorRequired": "Autor requerido"
+    },
+    "toast": {
+      "updateError": "Error actualizando registro",
+      "updateSuccess": "Registro actualizado",
+      "saveError": "Error guardando registro",
+      "saveSuccess": "Registro guardado",
+      "deleteError": "Error eliminando registro",
+      "deleteSuccess": "Registro eliminado"
+    }
+  },
   "sidebarNav": "Barra lateral de navegación",
   "learn": "Aprende",
   "molecules": "Moléculas",

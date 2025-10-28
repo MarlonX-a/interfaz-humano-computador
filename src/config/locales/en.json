@@ -1,4 +1,68 @@
 {
+  "addcontent": {
+    "title": "Add Content",
+    "form": {
+      "title": "Title",
+      "type": "Type",
+      "author": "Author",
+      "difficulty": "Difficulty Level",
+      "description": "Description",
+      "tags": "Tags",
+      "resources": "Resources",
+      "addResource": "Add resource",
+      "clear": "Clear",
+      "save": "Save",
+      "update": "Update",
+      "typeOptions": {
+        "molecule": "Molecule",
+        "atom": "Atom",
+        "experiment": "Experiment",
+        "article": "Article"
+      },
+      "difficultyOptions": {
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard"
+      }
+    },
+    "table": {
+      "filter": "Filter...",
+      "noRecords": "No records found",
+      "columns": {
+        "title": "Title",
+        "type": "Type",
+        "difficulty": "Difficulty Level",
+        "tags": "Tags",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete"
+      }
+    },
+    "history": {
+      "title": "Change History",
+      "noHistory": "No history available",
+      "columns": {
+        "record": "Record",
+        "action": "Action",
+        "author": "Author",
+        "date": "Date"
+      }
+    },
+    "validation": {
+      "titleRequired": "Title is required",
+      "authorRequired": "Author is required"
+    },
+    "toast": {
+      "updateError": "Error updating record",
+      "updateSuccess": "Record updated successfully",
+      "saveError": "Error saving record",
+      "saveSuccess": "Record saved successfully",
+      "deleteError": "Error deleting record",
+      "deleteSuccess": "Record deleted successfully"
+    }
+  },
   "sidebarNav": "Sidebar navigation",
   "learn": "Learn",
   "molecules": "Molecules",
