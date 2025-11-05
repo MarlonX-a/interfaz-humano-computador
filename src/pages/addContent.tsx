@@ -76,13 +76,13 @@ export default function AddContentPage({
 
   const fetchRecords = async () => {
     const { data, error } = await supabase.from("contenido").select("*");
-    if (error) console.error(error);
+    if (error) console.error("❌ Error al obtener registros:", error);
     else setRecords(data);
   };
 
   const fetchHistorial = async () => {
-    const { data, error } = await supabase.from("historial").select("*").order("created_at", { ascending: false });
-    if (error) console.error(error);
+    const { data, error } = await supabase.from("contenido_historial").select("*").order("created_at", { ascending: false });
+    if (error) console.error("❌ Error al obtener historial:", error);
     else setHistorial(data);
   };
 
@@ -123,6 +123,7 @@ export default function AddContentPage({
     return e;
   };
 
+  // 🔧 GUARDAR / ACTUALIZAR REGISTRO (corregido para omitir id en insert)
   const saveRecord = async () => {
     const e = validateFields();
     if (Object.keys(e).length > 0) {
@@ -130,24 +131,74 @@ export default function AddContentPage({
       return;
     }
 
+    console.log("🟢 Intentando guardar:", form);
+
+    const action = isEditing ? "Actualización" : "Creación"; // Definir la acción
+
     if (isEditing) {
-      const { error } = await supabase.from("contenido").update(form).eq("id", form.id);
-      if (error) toast.error(t("addcontent.toast.updateError"));
-      else {
-        toast.success(t("addcontent.toast.updateSuccess"));
+      const { error } = await supabase
+        .from("contenido")
+        .update(form)
+        .eq("id", form.id);
+
+      if (error) {
+        console.error("❌ Error al actualizar:", error);
+        toast.error(`Error al actualizar: ${error.message}`);
+      } else {
+        toast.success("✅ Registro actualizado correctamente");
         fetchRecords();
+
+        // Registrar en historial de cambios
+        await supabase.from("contenido_historial").insert([
+          {
+            contenido_id: form.id, // Asegurarnos de que usamos el ID correcto
+            title: form.title,
+            action: action,
+            author: form.author,
+          },
+        ]);
+
         clearForm();
       }
     } else {
-      const { error } = await supabase.from("contenido").insert([form]);
-      if (error) toast.error(t("addcontent.toast.saveError"));
-      else {
-        toast.success(t("addcontent.toast.saveSuccess"));
+      // 💡 Eliminamos el campo id antes del insert
+      const { id, ...formWithoutId } = form;
+
+      const { data, error } = await supabase
+        .from("contenido")
+        .insert([formWithoutId]);
+
+      console.log("🟣 Respuesta Supabase (insert):", { data, error });
+
+      if (error) {
+        console.error("❌ Error al guardar:", error);
+        toast.error(`Error guardando dato: ${error.message}`);
+      } else {
+        toast.success("✅ Registro guardado correctamente");
         fetchRecords();
-        clearForm();
+
+        // Registrar en historial de cambios
+        if (data && data.length > 0) {
+          const contenidoId = data[0].id; // Obtener el ID del registro insertado
+
+          // Asegurarnos de que el id del contenido es insertado en el historial
+          await supabase.from("contenido_historial").insert([
+            {
+              contenido_id: contenidoId, // Usar el id del contenido insertado
+              title: form.title,
+              action: action,
+              author: form.author,
+            },
+          ]);
+
+          clearForm();
+        } else {
+          toast.error("❌ No se pudo obtener el ID del nuevo registro.");
+        }
       }
     }
   };
+
 
   const editRecord = (r: RecordType) => {
     setForm(r);
@@ -155,9 +206,9 @@ export default function AddContentPage({
   };
   const deleteRecord = async (id: number) => {
     const { error } = await supabase.from("contenido").delete().eq("id", id);
-    if (error) toast.error(t("addcontent.toast.deleteError"));
+    if (error) toast.error(`Error al eliminar: ${error.message}`);
     else {
-      toast.success(t("addcontent.toast.deleteSuccess"));
+      toast.success("🗑️ Dato eliminado correctamente");
       fetchRecords();
     }
   };
@@ -176,23 +227,43 @@ export default function AddContentPage({
   };
 
   const filteredRecords = useMemo(() => {
-    const q = filter.toLowerCase();
-    return records.filter((r) => r.title.toLowerCase().includes(q) || r.tags.some((t) => t.toLowerCase().includes(q)));
+    const q = filter.toLowerCase().trim();
+    if (!q) return records;
+
+    return records.filter((r) => {
+      const textMatch =
+        r.title.toLowerCase().includes(q) ||
+        r.type.toLowerCase().includes(q) ||
+        r.author.toLowerCase().includes(q) ||
+        r.difficulty.toLowerCase().includes(q) ||
+        (r.description && r.description.toLowerCase().includes(q));
+
+      const tagMatch = Array.isArray(r.tags)
+        ? r.tags.some((t) => t.toLowerCase().includes(q))
+        : false;
+
+      const resourceMatch = Array.isArray(r.resources)
+        ? r.resources.some((res) => res.toLowerCase().includes(q))
+        : false;
+
+      return textMatch || tagMatch || resourceMatch;
+    });
   }, [filter, records]);
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-start">
-
-      {/* Imagen de fondo */}
       <img src={heroImage} alt="Fondo" className="absolute inset-0 w-full h-full object-cover opacity-70" />
       <div className={`absolute inset-0 ${highContrast ? "bg-black/50" : "bg-white/20"}`}></div>
 
-      {/* Contenido sobre la imagen */}
       <div className="relative z-10 w-full max-w-4xl p-6 mt-12 space-y-8">
-
         {/* Formulario */}
         <div className="bg-white rounded-2xl shadow-lg p-6">
+          <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">
+            {t("addcontent.formTitle")}
+          </h2>
+
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); saveRecord(); }}>
+            {/* Campos de formulario */}
             <div>
               <label className="block mb-1">{t("addcontent.form.title")}</label>
               <input className={inputClass} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />

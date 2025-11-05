@@ -1,5 +1,6 @@
 {
   "addcontent": {
+    "formTitle" : "Formulario de contenido",
     "title": "Añadir Contenido",
     "form": {
       "title": "Título",
@@ -110,6 +111,12 @@
   "learnInteractive": "Aprende química de forma interactiva con modelos 3D y realidad aumentada. Visualiza moléculas, átomos y reacciones directamente desde tu navegador.",
   "news": "Noticias",
   "newsHelp": "Aquí encontrarás las últimas noticias, nuevos modelos y experimentos disponibles en QuimicaUleam.",
+  "newWaterMolecule": "Nueva molécula de agua 3D",
+  "newWaterMoleculeDesc": "Explora la estructura molecular del H₂O con nuestro nuevo modelo interactivo.",
+  "updatedPeriodicTable": "Tabla periódica actualizada",
+  "updatedPeriodicTableDesc": "Accede a información detallada sobre todos los elementos químicos.",
+  "virtualExperiments": "Experimentos virtuales disponibles",
+  "virtualExperimentsDesc": "Realiza experimentos químicos sencillos directamente desde tu navegador.",
 
   "register": {
     "title": "Crear cuenta",
