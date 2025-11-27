@@ -1,4 +1,69 @@
 {
+  "addcontent": {
+    "formTitle" : "Formulario de contenido",
+    "title": "Añadir Contenido",
+    "form": {
+      "title": "Título",
+      "type": "Tipo",
+      "author": "Autor",
+      "difficulty": "Nivel de dificultad",
+      "description": "Descripción",
+      "tags": "Etiquetas",
+      "resources": "Recursos",
+      "addResource": "Agregar recurso",
+      "clear": "Limpiar",
+      "save": "Guardar",
+      "update": "Actualizar",
+      "typeOptions": {
+        "molecule": "Molécula",
+        "atom": "Átomo",
+        "experiment": "Experimento",
+        "article": "Artículo"
+      },
+      "difficultyOptions": {
+        "easy": "Fácil",
+        "medium": "Media",
+        "hard": "Difícil"
+      }
+    },
+    "table": {
+      "filter": "Filtrar...",
+      "noRecords": "No hay registros",
+      "columns": {
+        "title": "Título",
+        "type": "Tipo",
+        "difficulty": "Nivel dificultad",
+        "tags": "Etiquetas",
+        "actions": "Acciones"
+      },
+      "actions": {
+        "edit": "Editar",
+        "delete": "Eliminar"
+      }
+    },
+    "history": {
+      "title": "Historial de cambios",
+      "noHistory": "No hay historial",
+      "columns": {
+        "record": "Registro",
+        "action": "Acción",
+        "author": "Autor",
+        "date": "Fecha"
+      }
+    },
+    "validation": {
+      "titleRequired": "Título requerido",
+      "authorRequired": "Autor requerido"
+    },
+    "toast": {
+      "updateError": "Error actualizando registro",
+      "updateSuccess": "Registro actualizado",
+      "saveError": "Error guardando registro",
+      "saveSuccess": "Registro guardado",
+      "deleteError": "Error eliminando registro",
+      "deleteSuccess": "Registro eliminado"
+    }
+  },
   "sidebarNav": "Barra lateral de navegación",
   "learn": "Aprende",
   "molecules": "Moléculas",
@@ -12,19 +77,113 @@
   "textSize": "Tamaño de Texto",
   "highContrast": "Alto Contraste",
   "settings": "Configuración",
+  "addContent": "Agregar contenido",
+  "close": "Cerrar",
+  "titleLabel": "Título",
+  "titlePlaceholder": "Ingrese un título (3-150 caracteres)",
+  "typeLabel": "Tipo",
+  "chooseType": "Elija un tipo",
+  "tagsLabel": "Etiquetas (separadas por comas)",
+  "tagsPlaceholder": "ej. reacción, agua, orgánico",
+  "descriptionLabel": "Descripción",
+  "resourcesLabel": "Recursos (URLs)",
+  "resourcePlaceholder": "https://",
+  "addResource": "Agregar recurso",
+  "safetyLabel": "Nivel de seguridad",
+  "safetyLow": "Bajo",
+  "safetyMedium": "Medio",
+  "safetyHigh": "Alto",
+  "authorLabel": "Autor",
+  "newBtn": "Nuevo",
+  "saveBtn": "Guardar",
+  "updateBtn": "Actualizar",
+  "smartFilterBtn": "Filtro inteligente",
+  "clearBtn": "Limpiar",
+  "savedToast": "Contenido guardado (simulación)",
+  "updatedToast": "Contenido actualizado (simulación)",
+  "validationTitleRequired": "El título es requerido y debe tener al menos 3 caracteres.",
+  "validationTypeRequired": "Por favor elija un tipo.",
+  "article": "Artículo",
   "visualAlertsEnabled": "Alertas visuales activadas (simulación)",
   "voiceReadingEnabled": "Lectura por voz activada (simulación)",
   "welcome": "Bienvenido a QuimicaUleam",
   "exploreChemistry": "Explora el fascinante mundo de la química básica",
-  "learnInteractive": "Aprende química de manera interactiva con modelos 3D y realidad aumentada. Visualiza moléculas, átomos y reacciones directamente desde tu navegador.",
-  "sessionStarted": "Sesión iniciada correctamente.",
+  "learnInteractive": "Aprende química de forma interactiva con modelos 3D y realidad aumentada. Visualiza moléculas, átomos y reacciones directamente desde tu navegador.",
   "news": "Noticias",
-  "newsHelp": "Aquí encontrarás las últimas novedades, nuevos modelos y experimentos disponibles en QuimicaUleam.",
+  "newsHelp": "Aquí encontrarás las últimas noticias, nuevos modelos y experimentos disponibles en QuimicaUleam.",
   "newWaterMolecule": "Nueva molécula de agua 3D",
   "newWaterMoleculeDesc": "Explora la estructura molecular del H₂O con nuestro nuevo modelo interactivo.",
   "updatedPeriodicTable": "Tabla periódica actualizada",
   "updatedPeriodicTableDesc": "Accede a información detallada sobre todos los elementos químicos.",
   "virtualExperiments": "Experimentos virtuales disponibles",
   "virtualExperimentsDesc": "Realiza experimentos químicos sencillos directamente desde tu navegador.",
-  "searchPlaceholder": "Buscar..."
+
+  "register": {
+    "title": "Crear cuenta",
+    "firstName": "Nombre",
+    "lastName": "Apellido",
+    "email": "Correo electrónico", 
+    "confirmEmail": "Confirmar correo",
+    "password": "Contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "phone": "Teléfono",
+    "role": "Rol",
+    "placeholders": {
+      "firstName": "Tu nombre",
+      "lastName": "Tu apellido",
+      "email": "usuario@ejemplo.com",
+      "confirmEmail": "Repite tu correo",
+      "password": "Mínimo 8 caracteres",
+      "confirmPassword": "Repite tu contraseña",
+      "phone": "+593 9XXXXXXXX"
+    },
+    "terms": "Acepto los términos y condiciones",
+    "roles": {
+      "student": "Estudiante",
+      "teacher": "Profesor",
+      "other": "Otro"
+    },
+    "buttons": {
+      "create": "Crear cuenta",
+      "creating": "Registrando...",
+      "haveAccount": "Ya tengo cuenta"
+    },
+    "success": "Registro exitoso. Redirigiendo a inicio de sesión...",
+    "errors": {
+      "required": {
+        "firstName": "Nombre es requerido",
+        "lastName": "Apellido es requerido", 
+        "email": "Email es requerido",
+        "password": "Contraseña es requerida",
+        "phone": "Teléfono es requerido",
+        "terms": "Debes aceptar los términos"
+      },
+      "invalid": {
+        "email": "Email inválido",
+        "phone": "Teléfono inválido",
+        "password": "Debe tener al menos 6 caracteres"
+      },
+      "mismatch": {
+        "email": "Los emails no coinciden",
+        "password": "Las contraseñas no coinciden"
+      }
+    }
+  },
+
+  "login": {
+    "title": "Iniciar Sesión",
+    "email": "Correo electrónico",
+    "emailPlaceholder": "usuario@ejemplo.com",
+    "password": "Contraseña",
+    "passwordPlaceholder": "••••••••",
+    "rememberMe": "Recordarme",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "noAccount": "¿No tienes cuenta?",
+    "submit": "Entrar",
+    "success": "Inicio de sesión exitoso ✅",
+    "errors": {
+      "allFields": "Por favor, completa todos los campos.",
+      "invalid": "Correo o contraseña incorrectos ❌"
+    }
+  }
 }
