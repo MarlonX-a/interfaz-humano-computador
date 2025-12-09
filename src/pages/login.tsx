@@ -51,16 +51,13 @@ export default function Login({ highContrast = false, textSizeLarge: _textSizeLa
         // If we arrived after signing out, avoid immediate redirect
         if ((location.state as any)?.justSignedOut) return;
         
-        // Check localStorage directly for session
-        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
-        if (storageKey) {
-          const stored = localStorage.getItem(storageKey);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed?.access_token && parsed?.user) {
-              // Session exists, redirect to home
-              navigate('/');
-            }
+        // Check localStorage directly for session using the consistent storage key
+        const stored = localStorage.getItem('sb-auth-token');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.access_token && parsed?.user) {
+            // Session exists, redirect to home
+            navigate('/');
           }
         }
       } catch (err) {

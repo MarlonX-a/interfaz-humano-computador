@@ -1,9 +1,13 @@
-import { supabase } from './supabaseClient';
+import { supabase, shouldIgnoreAuthEvent } from './supabaseClient';
 import { toast } from 'react-hot-toast';
 
 export async function signOut(navigate?: (to: string, opts?: any) => void, t?: (k: string) => string) {
   try {
     console.debug('[Auth] signOut: starting');
+    
+    // CRITICAL: Mark explicit sign out so custom storage allows session removal
+    sessionStorage.setItem('explicitSignOut', 'true');
+    
     const res = await supabase.auth.signOut();
     console.debug('[Auth] signOut response', res);
     if (res?.error) {
@@ -44,7 +48,10 @@ export async function signOut(navigate?: (to: string, opts?: any) => void, t?: (
       // fallback: clear local storage keys that might keep the UI logged in and navigate to login
       try {
         localStorage.removeItem('rememberMe');
+        localStorage.removeItem('sb-auth-token'); // Our consistent storage key
         sessionStorage.removeItem('sessionActive');
+        sessionStorage.removeItem('explicitSignOut');
+        // Also clean up any legacy keys
         Object.keys(localStorage).forEach((k) => {
           const key = k.toLowerCase();
           if (key.includes('supabase') || key.includes('sb-') || key.includes('sb:') || key.includes('sb-token') || key.includes('supabase.auth')) {
@@ -63,7 +70,10 @@ export async function signOut(navigate?: (to: string, opts?: any) => void, t?: (
     // normal clean up
     try {
       localStorage.removeItem('rememberMe');
+      localStorage.removeItem('sb-auth-token'); // Our consistent storage key
       sessionStorage.removeItem('sessionActive');
+      sessionStorage.removeItem('explicitSignOut');
+      // Also clean up any legacy keys
       Object.keys(localStorage).forEach((k) => {
         const key = k.toLowerCase();
         if (key.includes('supabase') || key.includes('sb-') || key.includes('sb:') || key.includes('sb-token') || key.includes('supabase.auth')) {
@@ -93,10 +103,40 @@ export async function signOut(navigate?: (to: string, opts?: any) => void, t?: (
 export function initAuthListener(onChange?: (event: string, session: any) => void) {
   const sub = supabase.auth.onAuthStateChange((event, session) => {
     try {
+      // DEFENSIVE: Ignore events when page is hidden or recently became visible
+      // This prevents session loss when switching windows (Alt+Tab)
+      if (shouldIgnoreAuthEvent() && event === 'SIGNED_OUT') {
+        const isExplicitSignOut = sessionStorage.getItem('explicitSignOut') === 'true';
+        if (!isExplicitSignOut) {
+          console.debug('[Auth] Ignoring SIGNED_OUT - page not ready for auth events');
+          return;
+        }
+      }
+
+      // For SIGNED_OUT, verify if the user explicitly signed out
+      if (event === 'SIGNED_OUT') {
+        const isExplicitSignOut = sessionStorage.getItem('explicitSignOut') === 'true';
+        // Check if session still exists in localStorage (shouldn't happen if explicit sign out)
+        const hasStoredSession = localStorage.getItem('sb-auth-token') !== null;
+        
+        if (!isExplicitSignOut && hasStoredSession) {
+          console.warn('[Auth] Ignoring spurious SIGNED_OUT - session still exists and no explicit sign out');
+          return;
+        }
+        
+        // Clean up session flag
+        try {
+          sessionStorage.removeItem('sessionActive');
+        } catch (e) {
+          // ignore
+        }
+      }
+
       if (onChange) onChange(event, session);
-      // Update a small session flag for other consumers to read synchronously if needed
+      
+      // Update session flag for other consumers
       try {
-        if (event === 'SIGNED_IN') {
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           sessionStorage.setItem('sessionActive', '1');
         } else if (event === 'SIGNED_OUT') {
           sessionStorage.removeItem('sessionActive');

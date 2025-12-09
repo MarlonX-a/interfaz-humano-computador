@@ -81,6 +81,7 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
             firstName: form.firstName,
             lastName: form.lastName,
             displayName: `${form.firstName} ${form.lastName}`.trim(),
+            role: form.role, // Pass role to trigger so it creates profile with correct role
           },
         },
       });
@@ -93,8 +94,8 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
       const payloadProfile = {
         id: userId,
         email: form.email,
-        role: 'student', // safe default
-        role_requested: form.role !== 'student' ? form.role : null,
+        role: form.role, // Allow direct role assignment (student, teacher, other) for testing
+        role_requested: null, // No longer needed since we assign directly
         first_name: form.firstName || null,
         last_name: form.lastName || null,
         display_name: `${form.firstName} ${form.lastName}`.trim() || null,

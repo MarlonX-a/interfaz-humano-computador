@@ -1,7 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Newspaper } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { supabase } from "../lib/supabaseClient";
 import heroImage from "../img/HeroImage.png";
+
+interface RecentLesson {
+  id: number;
+  titulo: string;
+  descripcion: string | null;
+  nivel: string | null;
+  created_at: string;
+}
 
 export default function MainContent({
   textSizeLarge,
@@ -11,7 +20,57 @@ export default function MainContent({
   highContrast: boolean;
 }) {
   const { t } = useTranslation();
-  const [sessionStarted] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [recentLessons, setRecentLessons] = useState<RecentLesson[]>([]);
+  const [loadingLessons, setLoadingLessons] = useState(true);
+
+  // Check auth status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session);
+    };
+    checkAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch 3 most recent lessons
+  useEffect(() => {
+    const fetchRecentLessons = async () => {
+      setLoadingLessons(true);
+      const { data, error } = await supabase
+        .from("leccion")
+        .select("id, titulo, descripcion, nivel, created_at")
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (error) {
+        console.error("Error fetching recent lessons:", error);
+      } else {
+        setRecentLessons(data || []);
+      }
+      setLoadingLessons(false);
+    };
+
+    fetchRecentLessons();
+
+    // Subscribe to realtime changes on leccion table
+    const channel = supabase
+      .channel('leccion_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leccion' }, () => {
+        fetchRecentLessons();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return (
     <main
@@ -68,7 +127,7 @@ export default function MainContent({
             {t("heroButton", { defaultValue: "Comienza a aprender" })}
             </button>
 
-            {sessionStarted && (
+            {isLoggedIn ? (
               <div
                 role="status"
                 aria-live="polite"
@@ -80,13 +139,24 @@ export default function MainContent({
               >
                 {t("sessionStarted", { defaultValue: "Sesión iniciada correctamente" })}
               </div>
+            ) : (
+              <a
+                href="/login"
+                className={`mt-2 inline-block px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  highContrast
+                    ? "bg-gray-800 border border-yellow-500 text-yellow-300 hover:bg-yellow-900"
+                    : "bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200"
+                }`}
+              >
+                {t("registerOrLogin", { defaultValue: "Regístrate o inicia sesión" })}
+              </a>
             )}
           </div>
           
         </div>
       </section>
 
-      {/* 📰 Noticias */}
+      {/* 📰 Lecciones Recientes */}
       <section
         className={`bg-white rounded-2xl shadow-sm border p-6 transition-colors ${
           highContrast
@@ -97,41 +167,63 @@ export default function MainContent({
         <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
           <Newspaper className={`${highContrast ? 'text-yellow-300' : 'text-blue-600'}`} size={24} />
           <div className="flex flex-col">
-            <h2 className="text-lg font-semibold">{t("news")}</h2>
-            <p className="text-sm text-gray-500 mt-1">{t("newsHelp")}</p>
+            <h2 className="text-lg font-semibold">{t("recentLessons", { defaultValue: "Lecciones Recientes" })}</h2>
+            <p className="text-sm text-gray-500 mt-1">{t("recentLessonsHelp", { defaultValue: "Las últimas lecciones añadidas a la plataforma" })}</p>
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <article className="p-4 border rounded-xl hover:bg-gray-50 transition" aria-labelledby="news-1-title">
-            <a href="#" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
-              <h3 id="news-1-title" className="font-medium">{t("newWaterMolecule")}</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                {t("newWaterMoleculeDesc")}
-              </p>
-              <p className="text-xs text-gray-400 mt-2">{t("dateJan15")}</p>
-            </a>
-          </article>
-
-          <article className="p-4 border rounded-xl hover:bg-gray-50 transition" aria-labelledby="news-2-title">
-            <a href="#" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
-              <h3 id="news-2-title" className="font-medium">{t("updatedPeriodicTable")}</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                {t("updatedPeriodicTableDesc")}
-              </p>
-              <p className="text-xs text-gray-400 mt-2">{t("dateJan10")}</p>
-            </a>
-          </article>
-
-          <article className="p-4 border rounded-xl hover:bg-gray-50 transition" aria-labelledby="news-3-title">
-            <a href="#" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
-              <h3 id="news-3-title" className="font-medium">{t("virtualExperiments")}</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                {t("virtualExperimentsDesc")}
-              </p>
-              <p className="text-xs text-gray-400 mt-2">{t("dateJan5")}</p>
-            </a>
-          </article>
+          {loadingLessons ? (
+            // Skeleton loading
+            <>
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="p-4 border rounded-xl animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-200 rounded w-full mb-1"></div>
+                  <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                </div>
+              ))}
+            </>
+          ) : recentLessons.length === 0 ? (
+            <div className="col-span-full text-center py-8 text-gray-500">
+              {t("noLessonsYet", { defaultValue: "Aún no hay lecciones disponibles" })}
+            </div>
+          ) : (
+            recentLessons.map((lesson) => (
+              <article 
+                key={lesson.id} 
+                className={`p-4 border rounded-xl transition ${
+                  highContrast 
+                    ? "border-yellow-500 hover:bg-yellow-900/20" 
+                    : "hover:bg-gray-50"
+                }`}
+                aria-labelledby={`lesson-${lesson.id}-title`}
+              >
+                <a href={`/lesson/${lesson.id}`} className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
+                  <h3 id={`lesson-${lesson.id}-title`} className="font-medium">
+                    {lesson.titulo}
+                  </h3>
+                  <p className={`text-sm mt-1 line-clamp-2 ${highContrast ? "text-yellow-200" : "text-gray-500"}`}>
+                    {lesson.descripcion || t("noDescription", { defaultValue: "Sin descripción" })}
+                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    {lesson.nivel && (
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        highContrast 
+                          ? "bg-yellow-800 text-yellow-200" 
+                          : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {lesson.nivel}
+                      </span>
+                    )}
+                    <p className={`text-xs ${highContrast ? "text-yellow-400" : "text-gray-400"}`}>
+                      {new Date(lesson.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                </a>
+              </article>
+            ))
+          )}
         </div>
       </section>
     </main>
