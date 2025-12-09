@@ -11,7 +11,7 @@ export default function Footer({ highContrast = false }: FooterProps) {
 
   return (
     <footer className={`${bg} ${text} mt-10`}>
-      <div className={`max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8`}>
+      <div className={`max-w-7xl mx-auto px-4 py-6 sm:px-6 sm:py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8`}>
         <div>
           <h3 className={`text-lg font-semibold mb-3 border-b ${border} pb-1`}>
             QuimicaUleam

@@ -5,6 +5,8 @@
     "form": {
       "title": "Título",
       "type": "Tipo",
+      "selectLesson": "Selecciona una lección",
+      "createLesson": "Nueva lección",
       "author": "Autor",
       "difficulty": "Nivel de dificultad",
       "description": "Descripción",
@@ -53,7 +55,8 @@
     },
     "validation": {
       "titleRequired": "Título requerido",
-      "authorRequired": "Autor requerido"
+      "authorRequired": "Autor requerido",
+      "selectLessonRequired": "Selecciona una lección"
     },
     "toast": {
       "updateError": "Error actualizando registro",
@@ -65,6 +68,7 @@
     }
   },
   "sidebarNav": "Barra lateral de navegación",
+  "sidebarLabel": "Navegación principal",
   "learn": "Aprende",
   "molecules": "Moléculas",
   "atoms": "Átomos",
@@ -100,6 +104,38 @@
   "smartFilterBtn": "Filtro inteligente",
   "clearBtn": "Limpiar",
   "savedToast": "Contenido guardado (simulación)",
+    "undo": "Deshacer",
+    "undoSuccess": "Acción deshecha",
+    "titleHelp": "Este título será el encabezado de la lección",
+    "typeHelp": "Selecciona el tipo de contenido (molécula, átomo, experimento, artículo)",
+    "addContentHelpTitle": "Ayuda - Añadir Contenido",
+    "shortcuts": "Atajos",
+    "shortcut": {
+      "save": "Guardar (Ctrl/Cmd + S)",
+      "close": "Cerrar modal (Esc)",
+      "navigateSuggestions": "Navegar sugerencias (↑/↓)",
+      "applySuggestion": "Aplicar sugerencia (Enter)",
+      "tabNavigate": "Navegar entre campos (Tab)"
+    },
+    "history": {
+      "title": "Historial de cambios",
+      "clear": "Limpiar historial",
+      "confirmClear": "¿Estás seguro que deseas limpiar el historial?",
+      "cleared": "Historial limpiado",
+      "filters": {
+        "actionAll": "Todas las acciones",
+        "authorAll": "Todos los autores",
+        "typeAll": "Todos los tipos",
+        "search": "Buscar..."
+      },
+      "table": {
+        "action": "Acción",
+        "title": "Título",
+        "author": "Autor",
+        "type": "Tipo",
+        "when": "Fecha"
+      }
+    },
   "updatedToast": "Contenido actualizado (simulación)",
   "validationTitleRequired": "El título es requerido y debe tener al menos 3 caracteres.",
   "validationTypeRequired": "Por favor elija un tipo.",
@@ -141,7 +177,8 @@
     "roles": {
       "student": "Estudiante",
       "teacher": "Profesor",
-      "other": "Otro"
+      "other": "Otro",
+      "admin": "Administrador"
     },
     "buttons": {
       "create": "Crear cuenta",
@@ -180,10 +217,77 @@
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "noAccount": "¿No tienes cuenta?",
     "submit": "Entrar",
+    "loading": "Iniciando...",
     "success": "Inicio de sesión exitoso ✅",
     "errors": {
       "allFields": "Por favor, completa todos los campos.",
       "invalid": "Correo o contraseña incorrectos ❌"
+      ,
+      "blocked": "Demasiados intentos. Inténtalo de nuevo más tarde.",
+      "blockedTimer": "Intenta de nuevo en {{count}} segundos.",
+      "connection": "Error de conexión. Por favor verifica tu conexión a internet.",
+      "unconfirmed": "Cuenta no confirmada. Revisa tu correo para confirmar tu cuenta."
+    },
+    "signIn": "Iniciar sesión",
+    "signOut": "Cerrar sesión",
+    "signoutSuccess": "Sesión cerrada correctamente",
+    "signoutError": "No se pudo cerrar la sesión",
+    "help": {
+      "passwordTips": "Consejos: contraseña de al menos 6 caracteres, evita reutilizar contraseñas.",
+      "shortcuts": "Atajos: Ctrl+B (barra lateral), Ctrl+H (alto contraste), Ctrl+R (recargar)",
+      "rememberMeTooltip": "Recordar correo en este equipo"
     }
+  },
+  "createLesson": {
+  "title": "Crear Lección",
+  "fields": {
+    "title": "Título",
+    "description": "Descripción",
+    "level": "Nivel",
+    "thumbnail": "Thumbnail URL"
+  },
+  "buttons": {
+    "create": "Crear",
+    "cancel": "Cancelar"
   }
+  }
+
+  ,
+  "resetPassword": {
+    "title": "Recuperar contraseña",
+    "checkingSession": "Verificando enlace...",
+    "invalidOrExpired": "El enlace ha expirado o no es válido. Introduce tu correo y solicitaremos un nuevo enlace.",
+    "emailPlaceholder": "Correo electrónico",
+    "newPassword": "Nueva contraseña",
+    "newPasswordPlaceholder": "Nueva contraseña",
+    "confirmPassword": "Confirmar contraseña",
+    "confirmPlaceholder": "Confirmar contraseña",
+    "submit": "Actualizar contraseña",
+    "updating": "Actualizando...",
+    "resend": "Enviar correo de recuperación",
+    "resending": "Enviando...",
+    "resendSuccess": "Correo de recuperación enviado. Revisa tu bandeja.",
+    "success": "Contraseña actualizada. Ya puedes iniciar sesión.",
+    "errors": {
+      "invalidLink": "Enlace inválido o expirado.",
+      "tooShort": "La contraseña debe tener al menos 6 caracteres.",
+      "mismatch": "Las contraseñas no coinciden.",
+      "required": "Introduce la contraseña y la confirmación.",
+      "enterEmail": "Debes indicar un correo.",
+      "resendFailed": "No se pudo reenviar el correo.",
+      "updateFailed": "Error al actualizar la contraseña."
+
+    }
+  },
+  "nav": {
+    "home": "Inicio",
+    "login": "Iniciar sesión",
+    "register": "Registro",
+    "addContent": "Añadir contenido",
+    "resetPassword": "Recuperar contraseña"
+  },
+  "help": "Ayuda",
+  "sidebarOpen": "Abrir barra lateral",
+  "sidebarClose": "Cerrar barra lateral"
+
 }

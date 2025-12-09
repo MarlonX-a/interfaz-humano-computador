@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Eye, EyeOff } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
+import { toast } from "react-hot-toast";
 
 type Props = {
   textSizeLarge: boolean;
@@ -66,14 +68,65 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
   const onSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault();
     setSuccessMsg(null);
+
     if (!validate()) return;
 
     setSubmitting(true);
-    setTimeout(() => {
+    try {
+      const { data: signUpData } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          data: {
+            firstName: form.firstName,
+            lastName: form.lastName,
+            displayName: `${form.firstName} ${form.lastName}`.trim(),
+          },
+        },
+      });
+
+      // ... comprobar signUpError y userId como ya haces ...
+
+      const userId = signUpData?.user?.id;
+      const hasSession = !!signUpData?.session;
+
+      const payloadProfile = {
+        id: userId,
+        email: form.email,
+        role: 'student', // safe default
+        role_requested: form.role !== 'student' ? form.role : null,
+        first_name: form.firstName || null,
+        last_name: form.lastName || null,
+        display_name: `${form.firstName} ${form.lastName}`.trim() || null,
+        phone: form.phone || null,
+        terms_accepted: !!form.terms,
+        terms_accepted_at: form.terms ? new Date().toISOString() : null,
+        created_at: new Date().toISOString(),
+      };
+
+      if (hasSession) {
+        // Si hay sesión, podemos upsert con la session actual
+        const { error: profileErr } = await supabase.from('profiles')
+          .upsert([payloadProfile], { onConflict: 'id' });
+        if (profileErr) {
+          console.error('Error creando profile:', profileErr);
+          toast.error('Registro creado pero no se pudo crear el perfil: ' + profileErr.message);
+          setSubmitting(false);
+          return;
+        }
+      } else {
+        // Si no hay sesión, confiamos en el trigger DB para crear el profile después del insert en auth.users,
+        // o dejamos el usuario informando que verifique su correo (email verification).
+        toast.success('Registro creado. Verifica tu correo para continuar.');
+        setSubmitting(false);
+        setTimeout(() => navigate('/login'), 1200);
+        return;
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Error registrando");
       setSubmitting(false);
-      setSuccessMsg(t("register.success"));
-      setTimeout(() => navigate("/login"), 1200);
-    }, 1000);
+    }
   };
 
   const inputBaseClass = `w-full border rounded-lg px-3 py-2 bg-transparent outline-none ${
@@ -112,73 +165,88 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
           {/* Nombres */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
+              <label htmlFor="firstName" className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
                 {t("register.firstName")}
               </label>
               <input
+                id="firstName"
                 value={form.firstName}
-                onChange={(e) => handleChange("firstName", e.target.value)}
+                 onChange={(e) => handleChange("firstName", e.target.value)}
                 placeholder={t("register.placeholders.firstName")}
                 className={inputBaseClass}
+                aria-invalid={!!errors.firstName}
+                aria-describedby={errors.firstName ? "firstName-error" : undefined}
               />
-              {errors.firstName && <p className="text-sm text-red-600 mt-1">{errors.firstName}</p>}
+              {errors.firstName && <p id="firstName-error" className="text-sm text-red-600 mt-1">{errors.firstName}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
+              <label htmlFor="lastName" className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
                 {t("register.lastName")}
               </label>
               <input
+                id="lastName"
                 value={form.lastName}
-                onChange={(e) => handleChange("lastName", e.target.value)}
+                 onChange={(e) => handleChange("lastName", e.target.value)}
                 placeholder={t("register.placeholders.lastName")}
                 className={inputBaseClass}
+                aria-invalid={!!errors.lastName}
+                aria-describedby={errors.lastName ? "lastName-error" : undefined}
               />
-              {errors.lastName && <p className="text-sm text-red-600 mt-1">{errors.lastName}</p>}
+              {errors.lastName && <p id="lastName-error" className="text-sm text-red-600 mt-1">{errors.lastName}</p>}
             </div>
           </div>
 
           {/* Email */}
           <div>
-            <label className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
+            <label htmlFor="email" className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
               {t("register.email")}
             </label>
             <input
+              id="email"
               type="email"
               value={form.email}
               onChange={(e) => handleChange("email", e.target.value)}
               placeholder={t("register.placeholders.email")}
               className={inputBaseClass}
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? "email-error" : undefined}
             />
-            {errors.email && <p className="text-sm text-red-600 mt-1">{errors.email}</p>}
+            {errors.email && <p id="email-error" className="text-sm text-red-600 mt-1">{errors.email}</p>}
           </div>
 
           <div>
-            <label className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
+            <label htmlFor="confirmEmail" className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
               {t("register.confirmEmail")}
             </label>
             <input
+              id="confirmEmail"
               type="email"
               value={form.confirmEmail}
               onChange={(e) => handleChange("confirmEmail", e.target.value)}
               placeholder={t("register.placeholders.confirmEmail")}
               className={inputBaseClass}
+              aria-invalid={!!errors.confirmEmail}
+              aria-describedby={errors.confirmEmail ? "confirmEmail-error" : undefined}
             />
-            {errors.confirmEmail && <p className="text-sm text-red-600 mt-1">{errors.confirmEmail}</p>}
+            {errors.confirmEmail && <p id="confirmEmail-error" className="text-sm text-red-600 mt-1">{errors.confirmEmail}</p>}
           </div>
 
           {/* Contraseñas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="relative">
-              <label className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
+              <label htmlFor="password" className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
                 {t("register.password")}
               </label>
               <input
+                id="password"
                 type={showPassword ? "text" : "password"}
                 value={form.password}
                 onChange={(e) => handleChange("password", e.target.value)}
                 placeholder={t("register.placeholders.password")}
                 className={inputBaseClass}
+                aria-invalid={!!errors.password}
+                aria-describedby={errors.password ? "password-error" : undefined}
               />
               <button
                 type="button"
@@ -187,19 +255,22 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
-              {errors.password && <p className="text-sm text-red-600 mt-1">{errors.password}</p>}
+              {errors.password && <p id="password-error" className="text-sm text-red-600 mt-1">{errors.password}</p>}
             </div>
 
             <div className="relative">
-              <label className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
+              <label htmlFor="confirmPassword" className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
                 {t("register.confirmPassword")}
               </label>
               <input
+                id="confirmPassword"
                 type={showConfirmPassword ? "text" : "password"}
                 value={form.confirmPassword}
                 onChange={(e) => handleChange("confirmPassword", e.target.value)}
                 placeholder={t("register.placeholders.confirmPassword")}
                 className={inputBaseClass}
+                aria-invalid={!!errors.confirmPassword}
+                aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
               />
               <button
                 type="button"
@@ -208,30 +279,34 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
               >
                 {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
-              {errors.confirmPassword && <p className="text-sm text-red-600 mt-1">{errors.confirmPassword}</p>}
+              {errors.confirmPassword && <p id="confirmPassword-error" className="text-sm text-red-600 mt-1">{errors.confirmPassword}</p>}
             </div>
           </div>
 
           {/* Teléfono */}
           <div>
-            <label className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
+            <label htmlFor="phone" className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
               {t("register.phone")}
             </label>
             <input
+              id="phone"
               value={form.phone}
               onChange={(e) => handleChange("phone", e.target.value)}
               placeholder={t("register.placeholders.phone")}
               className={inputBaseClass}
+              aria-invalid={!!errors.phone}
+              aria-describedby={errors.phone ? "phone-error" : undefined}
             />
-            {errors.phone && <p className="text-sm text-red-600 mt-1">{errors.phone}</p>}
+            {errors.phone && <p id="phone-error" className="text-sm text-red-600 mt-1">{errors.phone}</p>}
           </div>
 
           {/* Rol */}
           <div>
-            <label className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
+            <label htmlFor="role" className={`block text-sm font-semibold mb-1 ${highContrast ? "text-yellow-300" : "text-gray-700"}`}>
               {t("register.role")}
             </label>
             <select
+              id="role"
               value={form.role}
               onChange={(e) => handleChange("role", e.target.value)}
               className={inputBaseClass}
@@ -243,24 +318,26 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
           </div>
 
           {/* Términos */}
-          <div className="flex items-start space-x-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center sm:space-x-2">
             <input
               id="terms"
               type="checkbox"
               checked={form.terms}
               onChange={(e) => handleChange("terms", e.target.checked)}
               className={`mt-1 ${highContrast ? "accent-yellow-400" : "accent-green-600"}`}
+              aria-describedby={errors.terms ? "terms-error" : undefined}
             />
             <label htmlFor="terms" className="text-sm">{t("register.terms")}</label>
           </div>
+          {errors.terms && <p id="terms-error" className="text-sm text-red-600 mt-1">{errors.terms}</p>}
           {errors.terms && <p className="text-sm text-red-600 mt-1">{errors.terms}</p>}
 
           {/* Botones */}
-          <div className="flex items-center justify-between space-x-3">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <button
               type="submit"
               disabled={submitting}
-              className={`flex-1 py-2 rounded-lg font-semibold transition duration-200 ${
+              className={`w-full sm:flex-1 py-3 sm:py-2 rounded-lg font-semibold transition duration-200 ${
                 highContrast
                   ? "bg-yellow-400 text-black hover:bg-yellow-300"
                   : "bg-green-600 text-white hover:bg-green-700"
@@ -272,7 +349,7 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
             <button
               type="button"
               onClick={() => navigate("/login")}
-              className={`px-4 py-2 rounded-lg border ${
+              className={`w-full sm:w-auto px-4 py-3 sm:py-2 rounded-lg border ${
                 highContrast
                   ? "border-yellow-400 text-yellow-300 hover:bg-yellow-400 hover:text-black"
                   : "border-gray-300 text-gray-700 hover:bg-gray-100"

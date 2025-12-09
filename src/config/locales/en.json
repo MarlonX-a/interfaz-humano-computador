@@ -5,6 +5,8 @@
     "form": {
       "title": "Title",
       "type": "Type",
+      "selectLesson": "Select a lesson",
+      "createLesson": "Create lesson",
       "author": "Author",
       "difficulty": "Difficulty Level",
       "description": "Description",
@@ -53,7 +55,8 @@
     },
     "validation": {
       "titleRequired": "Title is required",
-      "authorRequired": "Author is required"
+      "authorRequired": "Author is required",
+      "selectLessonRequired": "Select a lesson"
     },
     "toast": {
       "updateError": "Error updating record",
@@ -65,6 +68,7 @@
     }
   },
   "sidebarNav": "Sidebar navigation",
+  "sidebarLabel": "Main navigation",
   "learn": "Learn",
   "molecules": "Molecules",
   "atoms": "Atoms",
@@ -100,6 +104,38 @@
   "smartFilterBtn": "Smart filter",
   "clearBtn": "Clear",
   "savedToast": "Content saved (simulation)",
+    "undo": "Undo",
+    "undoSuccess": "Undo successful",
+    "titleHelp": "This title will be the lesson header",
+    "typeHelp": "Select content type (molecule, atom, experiment, article)",
+    "addContentHelpTitle": "Help - Add Content",
+    "shortcuts": "Shortcuts",
+    "shortcut": {
+      "save": "Save (Ctrl/Cmd + S)",
+      "close": "Close modal (Esc)",
+      "navigateSuggestions": "Navigate suggestions (↑/↓)",
+      "applySuggestion": "Apply suggestion (Enter)",
+      "tabNavigate": "Navigate between fields (Tab)"
+    },
+    "history": {
+      "title": "Change History",
+      "clear": "Clear history",
+      "confirmClear": "Are you sure you want to clear history?",
+      "cleared": "History cleared",
+      "filters": {
+        "actionAll": "All actions",
+        "authorAll": "All authors",
+        "typeAll": "All types",
+        "search": "Search..."
+      },
+      "table": {
+        "action": "Action",
+        "title": "Title",
+        "author": "Author",
+        "type": "Type",
+        "when": "When"
+      }
+    },
   "updatedToast": "Content updated (simulation)",
   "validationTitleRequired": "Title is required and must be at least 3 characters.",
   "validationTypeRequired": "Please choose a type.",
@@ -141,7 +177,8 @@
     "roles": {
       "student": "Student",
       "teacher": "Teacher",
-      "other": "Other"
+      "other": "Other",
+      "admin": "Administrator"
     },
     "buttons": {
       "create": "Create Account",
@@ -180,10 +217,74 @@
     "forgotPassword": "Forgot password?",
     "noAccount": "Don't have an account?",
     "submit": "Sign in",
+    "loading": "Signing in...",
     "success": "Login successful ✅",
     "errors": {
       "allFields": "Please complete all fields.",
       "invalid": "Invalid email or password ❌"
+      ,
+      "blocked": "Too many attempts. Try again later.",
+      "blockedTimer": "Try again in {{count}} seconds.",
+      "connection": "Connection error. Please check your internet connection.",
+      "unconfirmed": "Account not confirmed. Please check your email."
+    },
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "signoutSuccess": "You have been signed out.",
+    "signoutError": "Error signing out. Please try again.",
+    "help": {
+      "passwordTips": "Password tips: at least 6 characters and avoid reusing passwords.",
+      "shortcuts": "Shortcuts: Ctrl+B (sidebar), Ctrl+H (high contrast), Ctrl+R (reload)",
+      "rememberMeTooltip": "Remember email on this device"
     }
-  }
-}
+  },
+  "createLesson": {
+        "title": "Create Lesson",
+        "fields": {
+          "title": "Title",
+          "description": "Description",
+          "level": "Level",
+          "thumbnail": "Thumbnail URL"
+        },
+        "buttons": {
+          "create": "Create",
+          "cancel": "Cancel"
+        }
+},
+  "resetPassword": {
+    "title": "Reset password",
+    "checkingSession": "Checking reset link...",
+    "invalidOrExpired": "The link has expired or is invalid. Enter your email and we'll request a new reset link.",
+    "emailPlaceholder": "Email address",
+    "newPassword": "New password",
+    "newPasswordPlaceholder": "New password",
+    "confirmPassword": "Confirm password",
+    "confirmPlaceholder": "Confirm password",
+    "submit": "Update password",
+    "updating": "Updating...",
+    "resend": "Send recovery email",
+    "resending": "Sending...",
+    "resendSuccess": "Recovery email sent. Check your inbox.",
+    "success": "Password updated. You can now sign in.",
+    "errors": {
+      "invalidLink": "Invalid or expired link.",
+      "tooShort": "Password must be at least 6 characters.",
+      "mismatch": "Passwords do not match.",
+      "required": "Please enter the password and the confirmation.",
+      "enterEmail": "You must provide an email address.",
+      "resendFailed": "Could not re-send the email.",
+      "updateFailed": "Error updating password."
+    }
+  },
+
+  "nav": {
+    "home": "Home",
+    "login": "Login",
+    "register": "Register",
+    "addContent": "Add Content",
+    "resetPassword": "Reset Password"
+  },
+  "help": "Help",
+  "sidebarOpen": "Open sidebar",
+  "sidebarClose": "Close sidebar"
+ }

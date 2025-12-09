@@ -21,16 +21,17 @@ export default function MainContent({
     >
       {/* 🌟 Hero mejorado */}
       <section
-        className={`relative flex flex-col justify-center items-center text-center rounded-2xl shadow-md border mb-12 transition-colors h-[75vh] sm:h-[85vh] overflow-hidden ${
+        className={`relative flex flex-col justify-center items-center text-center rounded-2xl shadow-md border mb-12 transition-colors min-h-[55vh] sm:min-h-[65vh] md:min-h-[75vh] lg:min-h-[85vh] overflow-hidden ${
           highContrast
             ? "bg-black border-yellow-300 text-yellow-300"
             : "bg-white border-gray-200 text-gray-800"
         }`}
       >
-        {/* Imagen de fondo */}
+        {/* Imagen de fondo (decorativa) */}
         <img
           src={heroImage}
-          alt="Hero"
+          alt=""
+          aria-hidden="true"
           className="absolute inset-0 w-full h-full object-cover opacity-70"
         />
 
@@ -43,20 +44,21 @@ export default function MainContent({
 
         {/* Contenido principal */}
         <div className="relative z-10 px-6 sm:px-12 max-w-3xl">
-          <h1 className="text-5xl sm:text-6xl font-extrabold mb-4 leading-tight drop-shadow-lg">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-4 leading-tight drop-shadow-lg">
             {t("heroTitle", {
               defaultValue: "Explora el mundo de la ciencia de forma interactiva",
             })}
           </h1>
 
-          <p className="text-lg sm:text-xl mb-6 opacity-90">
+          <p className="text-base sm:text-lg mb-6 opacity-90">
             {t("heroSubtitle", {
               defaultValue:
                 "Descubre conceptos, experimentos virtuales y avances científicos en un entorno diseñado para el aprendizaje dinámico.",
             })}
           </p>
 
-          <button
+          <div className="flex flex-col sm:flex-row items-center gap-3 justify-center">
+            <button
             className={`mt-2 px-6 py-3 rounded-full font-semibold text-base transition-all ${
               highContrast
                 ? "bg-yellow-500 text-black hover:bg-yellow-400"
@@ -64,19 +66,23 @@ export default function MainContent({
             }`}
           >
             {t("heroButton", { defaultValue: "Comienza a aprender" })}
-          </button>
+            </button>
 
-          {sessionStarted && (
-            <div
-              className={`mt-6 inline-block px-5 py-2 rounded-lg text-sm transition-colors ${
-                highContrast
-                  ? "bg-yellow-900 border border-yellow-500 text-yellow-300"
-                  : "bg-green-100 border border-green-300 text-green-800"
-              }`}
-            >
-              {t("sessionStarted", { defaultValue: "Sesión iniciada correctamente" })}
-            </div>
-          )}
+            {sessionStarted && (
+              <div
+                role="status"
+                aria-live="polite"
+                className={`mt-2 inline-block px-5 py-2 rounded-lg text-sm transition-colors ${
+                  highContrast
+                    ? "bg-yellow-900 border border-yellow-500 text-yellow-300"
+                    : "bg-green-100 border border-green-300 text-green-800"
+                }`}
+              >
+                {t("sessionStarted", { defaultValue: "Sesión iniciada correctamente" })}
+              </div>
+            )}
+          </div>
+          
         </div>
       </section>
 
@@ -89,7 +95,7 @@ export default function MainContent({
         }`}
       >
         <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
-          <Newspaper className="text-blue-600" size={24} />
+          <Newspaper className={`${highContrast ? 'text-yellow-300' : 'text-blue-600'}`} size={24} />
           <div className="flex flex-col">
             <h2 className="text-lg font-semibold">{t("news")}</h2>
             <p className="text-sm text-gray-500 mt-1">{t("newsHelp")}</p>
@@ -97,28 +103,34 @@ export default function MainContent({
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <article className="p-4 border rounded-xl hover:bg-gray-50 transition">
-            <h3 className="font-medium">{t("newWaterMolecule")}</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {t("newWaterMoleculeDesc")}
-            </p>
-            <p className="text-xs text-gray-400 mt-2">{t("dateJan15")}</p>
+          <article className="p-4 border rounded-xl hover:bg-gray-50 transition" aria-labelledby="news-1-title">
+            <a href="#" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
+              <h3 id="news-1-title" className="font-medium">{t("newWaterMolecule")}</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {t("newWaterMoleculeDesc")}
+              </p>
+              <p className="text-xs text-gray-400 mt-2">{t("dateJan15")}</p>
+            </a>
           </article>
 
-          <article className="p-4 border rounded-xl hover:bg-gray-50 transition">
-            <h3 className="font-medium">{t("updatedPeriodicTable")}</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {t("updatedPeriodicTableDesc")}
-            </p>
-            <p className="text-xs text-gray-400 mt-2">{t("dateJan10")}</p>
+          <article className="p-4 border rounded-xl hover:bg-gray-50 transition" aria-labelledby="news-2-title">
+            <a href="#" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
+              <h3 id="news-2-title" className="font-medium">{t("updatedPeriodicTable")}</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {t("updatedPeriodicTableDesc")}
+              </p>
+              <p className="text-xs text-gray-400 mt-2">{t("dateJan10")}</p>
+            </a>
           </article>
 
-          <article className="p-4 border rounded-xl hover:bg-gray-50 transition">
-            <h3 className="font-medium">{t("virtualExperiments")}</h3>
-            <p className="text-sm text-gray-500 mt-1">
-              {t("virtualExperimentsDesc")}
-            </p>
-            <p className="text-xs text-gray-400 mt-2">{t("dateJan5")}</p>
+          <article className="p-4 border rounded-xl hover:bg-gray-50 transition" aria-labelledby="news-3-title">
+            <a href="#" className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
+              <h3 id="news-3-title" className="font-medium">{t("virtualExperiments")}</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {t("virtualExperimentsDesc")}
+              </p>
+              <p className="text-xs text-gray-400 mt-2">{t("dateJan5")}</p>
+            </a>
           </article>
         </div>
       </section>
