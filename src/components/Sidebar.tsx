@@ -1,4 +1,4 @@
-import { useState, type FC } from "react";
+import { useState, type FC, useRef } from "react";
 import {
   Settings,
   BookOpenText,
@@ -16,7 +16,11 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import HelpModal from "./HelpModal";
 import { useTranslation } from "react-i18next";
+import { useEffect } from "react";
+import { supabase} from "../lib/supabaseClient";
+import { getProfile } from "../lib/data/profiles";
 
 interface SidebarProps {
   open: boolean;
@@ -41,10 +45,247 @@ const Sidebar: FC<SidebarProps> = ({
     accesibilidad: false,
   });
   const navigate = useNavigate();
+  const sidebarRef = useRef<HTMLDivElement | null>(null);
+  // Session state not used directly here; profile is used to render certain links
+  const [profile, setProfile] = useState<any | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const initRef = useRef(false);
 
   const toggleMenu = (menu: string) => {
     setOpenMenus((prev) => ({ ...prev, [menu]: !prev[menu] }));
   };
+
+  // Auth listener - only runs once on mount
+  useEffect(() => {
+    // Helper to extract profile from JWT token (fallback)
+    const getProfileFromJWT = (): any | null => {
+      try {
+        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (storageKey) {
+          const stored = localStorage.getItem(storageKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            const user = parsed?.user;
+            if (user) {
+              return {
+                display_name: user.user_metadata?.display_name || user.user_metadata?.name || null,
+                role: user.user_metadata?.role || user.app_metadata?.role || 'student',
+                role_requested: null
+              };
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Sidebar] Error extracting profile from JWT:', e);
+      }
+      return null;
+    };
+
+    // Helper to load profile with timeout
+    const loadProfile = async (userId: string) => {
+      try {
+        // Add timeout to getProfile
+        const profilePromise = getProfile(userId);
+        const timeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('profile_timeout')), 3000)
+        );
+        
+        const res = await Promise.race([profilePromise, timeoutPromise]);
+        if (!res?.error) {
+          setProfile(res.data);
+        } else {
+          // Fallback to JWT
+          const fallbackProfile = getProfileFromJWT();
+          setProfile(fallbackProfile);
+        }
+      } catch (err: any) {
+        console.warn("[Sidebar] profile load error/timeout:", err?.message || err);
+        // Fallback to JWT
+        const fallbackProfile = getProfileFromJWT();
+        setProfile(fallbackProfile);
+      }
+    };
+
+    // Helper to read session from localStorage (needed for init check)
+    const getStoredSession = () => {
+      try {
+        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+        if (storageKey) {
+          const stored = localStorage.getItem(storageKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed?.access_token && parsed?.user) {
+              return {
+                access_token: parsed.access_token,
+                refresh_token: parsed.refresh_token,
+                user: parsed.user,
+              };
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Sidebar] Error reading stored session:', err);
+      }
+      return null;
+    };
+
+    const init = async () => {
+      // Prevent re-initialization if already initialized
+      if (initRef.current) {
+        return;
+      }
+
+      // Check if we already have a valid profile before initializing
+      // This prevents re-initialization when navigating between pages
+      if (profile) {
+        const storedSession = getStoredSession();
+        if (storedSession && storedSession.user?.id) {
+          // Profile already exists, don't re-initialize
+          initRef.current = true;
+          return;
+        }
+      }
+
+      initRef.current = true;
+
+      try {
+        // Add timeout to getSession
+        const getSessionWithTimeout = (): Promise<{ data: any; error: any }> => {
+          return Promise.race([
+            supabase.auth.getSession(),
+            new Promise<{ data: any; error: any }>((resolve) => 
+              setTimeout(() => {
+                resolve({ data: { session: null }, error: { message: 'timeout' } });
+              }, 3000)
+            )
+          ]);
+        };
+
+        const { data, error } = await getSessionWithTimeout();
+        if (data?.session?.user?.id && !error) {
+          await loadProfile(data.session.user.id);
+        } else {
+          // Fallback to JWT if no session from Supabase
+          const fallbackProfile = getProfileFromJWT();
+          if (fallbackProfile) {
+            setProfile(fallbackProfile);
+          } else {
+            setProfile(null);
+          }
+        }
+      } catch (err) {
+        console.warn("Sidebar init profile error:", err);
+        // Fallback to JWT on error
+        const fallbackProfile = getProfileFromJWT();
+        if (fallbackProfile) {
+          setProfile(fallbackProfile);
+        } else {
+          setProfile(null);
+        }
+      }
+    };
+
+    init();
+
+    // ULTRA DEFENSIVE: Only react to explicit SIGNED_IN or SIGNED_OUT, ignore all other events
+    // This prevents profile loss when changing windows (Alt+Tab) triggers Supabase events
+    const { data: subscriptionData } = supabase.auth.onAuthStateChange(async (event, sess) => {
+      // Check if we have a valid session in localStorage
+      const storedSession = getStoredSession();
+      
+      if (event === 'SIGNED_OUT') {
+        // SUPER DEFENSIVE: Before clearing, check if there's still a valid token in localStorage
+        // If there is, the user didn't actually sign out - Supabase just failed to refresh
+        if (storedSession) {
+          console.warn('[Sidebar] Ignoring SIGNED_OUT - valid token still in localStorage');
+          return; // Keep current state, don't clear
+        }
+        // No token in localStorage = real sign out
+        setProfile(null);
+        return;
+      }
+      
+      // Only react to SIGNED_IN event explicitly
+      // Ignore all other events (TOKEN_REFRESHED, INITIAL_SESSION, etc.) if we already have a profile
+      if (event === 'SIGNED_IN') {
+        // Only update if we receive a valid session
+        if (sess?.user?.id) {
+          await loadProfile(sess.user.id);
+        }
+        return;
+      }
+      
+      // For all other events (TOKEN_REFRESHED, INITIAL_SESSION, USER_UPDATED, etc.)
+      // ULTRA DEFENSIVE: Ignore completely if we already have a valid profile and session in localStorage
+      // This prevents profile loss when changing windows triggers these events
+      if (storedSession && profile) {
+        // We already have a valid profile, ignore this event completely
+        console.debug('[Sidebar] Ignoring', event, '- profile already exists');
+        return;
+      }
+      
+      // Only update if we don't have a profile and receive a valid session
+      if (sess?.user?.id && !profile) {
+        await loadProfile(sess.user.id);
+      }
+      // If sess is null but event is NOT SIGNED_OUT, keep current profile
+    });
+
+    return () => {
+      try {
+        subscriptionData?.subscription?.unsubscribe();
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, []); // Empty dependency array - only run once on mount
+
+  // Sidebar open/close effects - separate from auth
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && open) {
+        setSidebarOpen && setSidebarOpen(false);
+      }
+    };
+
+    const updateBodyOverflow = () => {
+      try {
+        const isMobile = typeof window !== 'undefined' ? window.innerWidth < 1024 : true;
+        if (open && isMobile) {
+          document.body.style.overflow = "hidden";
+        } else {
+          document.body.style.overflow = "";
+        }
+      } catch (e) {}
+    };
+
+    if (open) {
+      // Prevent background scroll on mobile/when overlay is open
+      updateBodyOverflow();
+
+      // focus the first focusable element inside the sidebar
+      setTimeout(() => {
+        try {
+          const focusNode = sidebarRef.current?.querySelector("button, a, input, select, textarea") as HTMLElement | null;
+          focusNode?.focus();
+        } catch (err) {}
+      }, 50);
+    } else {
+      updateBodyOverflow();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("resize", updateBodyOverflow);
+
+    return () => {
+      // Cleanup
+      try {
+        document.body.style.overflow = "";
+      } catch (e) {}
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("resize", updateBodyOverflow);
+    };
+  }, [open, setSidebarOpen]);
 
   return (
     <>
@@ -52,23 +293,30 @@ const Sidebar: FC<SidebarProps> = ({
       {open && (
         <div
           className="fixed inset-0 bg-black/50 z-30 lg:hidden"
-          aria-hidden="true"
+          role="presentation"
           onClick={() => setSidebarOpen && setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
+        id="main-sidebar"
         className={`fixed top-[64px] left-0 w-64 transform transition-transform duration-300 ease-in-out z-40 
         ${open ? "translate-x-0" : "-translate-x-full"}
         ${highContrast ? "bg-black text-yellow-300" : "bg-blue-900 text-white"}
         h-[calc(100vh-64px)] overflow-y-auto shadow-lg`}
         aria-label={t("sidebarLabel")}
+        aria-hidden={!open}
+        role="dialog"
+        aria-modal={open}
+        ref={sidebarRef}
       >
         <nav className={`flex flex-col p-4 space-y-2 ${textSizeLarge ? "text-lg" : "text-sm"}`}>
+                    {/* moved help button to bottom */}
+
           {/* Cerrar en móvil */}
           <div className="lg:hidden flex justify-end mb-4">
-            <button onClick={() => setSidebarOpen && setSidebarOpen(false)}>
+            <button aria-label={t("close") ?? "Close sidebar"} aria-controls="main-sidebar" onClick={() => setSidebarOpen && setSidebarOpen(false)}>
               <X size={20} />
             </button>
           </div>
@@ -156,15 +404,34 @@ const Sidebar: FC<SidebarProps> = ({
             <Settings size={18} /> <span>{t("settings")}</span>
           </a>
 
-          {/* Añadir contenido */}
-          <button
-            onClick={() => navigate("/add-content")}
-            className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
-          >
-            <Plus size={16} /> <span>{t("addContent")}</span>
-          </button>
+          {/* Historial */}
+          <a onClick={() => navigate('/history')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition cursor-pointer">
+            <BookOpenText size={18} /> <span>{t('history.title') || 'Historial'}</span>
+          </a>
+
+          {/* Añadir contenido - visible solo para teachers */}
+          {profile && (profile.role === "teacher" || profile.role === "admin") && (
+            <button
+              onClick={() => navigate("/add-content")}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+            >
+              <Plus size={16} /> <span>{t("addContent")}</span>
+            </button>
+          )}
         </nav>
+
+        <div className="mt-auto p-4 border-t pt-3">
+          <button
+            onClick={() => setHelpOpen(true)}
+            className="w-full flex items-center justify-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-sm"
+            aria-label={t("help") || "Ayuda"}
+          >
+            <span>❔</span>
+            <span>{t("help") || "Ayuda"}</span>
+          </button>
+        </div>
       </aside>
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
   );
 };
