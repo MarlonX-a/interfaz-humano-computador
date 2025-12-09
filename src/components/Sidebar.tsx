@@ -19,7 +19,7 @@ import { useNavigate } from "react-router-dom";
 import HelpModal from "./HelpModal";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
-import { supabase} from "../lib/supabaseClient";
+import { supabase, shouldIgnoreAuthEvent } from "../lib/supabaseClient";
 import { getProfile } from "../lib/data/profiles";
 
 interface SidebarProps {
@@ -60,19 +60,24 @@ const Sidebar: FC<SidebarProps> = ({
     // Helper to extract profile from JWT token (fallback)
     const getProfileFromJWT = (): any | null => {
       try {
-        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
-        if (storageKey) {
-          const stored = localStorage.getItem(storageKey);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            const user = parsed?.user;
-            if (user) {
-              return {
-                display_name: user.user_metadata?.display_name || user.user_metadata?.name || null,
-                role: user.user_metadata?.role || user.app_metadata?.role || 'student',
-                role_requested: null
-              };
-            }
+        // First try the consistent key we use
+        let stored = localStorage.getItem('sb-auth-token');
+        // Fallback to legacy pattern if not found
+        if (!stored) {
+          const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+          if (storageKey) {
+            stored = localStorage.getItem(storageKey);
+          }
+        }
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const user = parsed?.user;
+          if (user) {
+            return {
+              display_name: user.user_metadata?.display_name || user.user_metadata?.name || null,
+              role: user.user_metadata?.role || user.app_metadata?.role || 'student',
+              role_requested: null
+            };
           }
         }
       } catch (e) {
@@ -83,6 +88,15 @@ const Sidebar: FC<SidebarProps> = ({
 
     // Helper to load profile with timeout
     const loadProfile = async (userId: string) => {
+      // If page is not visible or recently became visible, skip Supabase call and use JWT directly
+      // This prevents timeouts when changing windows (Alt+Tab)
+      if (shouldIgnoreAuthEvent()) {
+        console.debug('[Sidebar] Page not ready, using JWT fallback directly');
+        const fallbackProfile = getProfileFromJWT();
+        setProfile(fallbackProfile);
+        return;
+      }
+
       try {
         // Add timeout to getProfile
         const profilePromise = getProfile(userId);
@@ -106,21 +120,26 @@ const Sidebar: FC<SidebarProps> = ({
       }
     };
 
-    // Helper to read session from localStorage (needed for init check)
+    // Helper to read session from localStorage using consistent storage key
     const getStoredSession = () => {
       try {
-        const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
-        if (storageKey) {
-          const stored = localStorage.getItem(storageKey);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed?.access_token && parsed?.user) {
-              return {
-                access_token: parsed.access_token,
-                refresh_token: parsed.refresh_token,
-                user: parsed.user,
-              };
-            }
+        // First try the consistent key we use
+        let stored = localStorage.getItem('sb-auth-token');
+        // Fallback to legacy pattern if not found
+        if (!stored) {
+          const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+          if (storageKey) {
+            stored = localStorage.getItem(storageKey);
+          }
+        }
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.access_token && parsed?.user) {
+            return {
+              access_token: parsed.access_token,
+              refresh_token: parsed.refresh_token,
+              user: parsed.user,
+            };
           }
         }
       } catch (err) {
@@ -190,9 +209,38 @@ const Sidebar: FC<SidebarProps> = ({
     // ULTRA DEFENSIVE: Only react to explicit SIGNED_IN or SIGNED_OUT, ignore all other events
     // This prevents profile loss when changing windows (Alt+Tab) triggers Supabase events
     const { data: subscriptionData } = supabase.auth.onAuthStateChange(async (event, sess) => {
+      // DEFENSIVE: Ignore ALL events when page is hidden or recently became visible
+      // This prevents Supabase from closing the session when changing windows (Alt+Tab)
+      if (shouldIgnoreAuthEvent()) {
+        console.debug('[Sidebar] Ignoring', event, '- page not ready for auth events');
+        return;
+      }
+
       // Check if we have a valid session in localStorage
       const storedSession = getStoredSession();
       
+      // ULTRA DEFENSIVE: If we already have a valid profile and session in localStorage,
+      // ignore ALL events except SIGNED_OUT (and only react to SIGNED_OUT if token is really gone)
+      // This prevents profile loss during navigation when Supabase sends spurious events
+      if (storedSession && profile && storedSession.user?.id) {
+        // We have a valid profile, only react to SIGNED_OUT if token is really gone
+        if (event === 'SIGNED_OUT') {
+          // Double-check: if token still exists, ignore this event
+          if (storedSession) {
+            console.warn('[Sidebar] Ignoring SIGNED_OUT during navigation - valid token still in localStorage');
+            return; // Keep current state, don't clear
+          }
+          // Token is really gone, this is a real sign out
+          setProfile(null);
+          return;
+        }
+        // For all other events (SIGNED_IN, TOKEN_REFRESHED, INITIAL_SESSION, etc.),
+        // ignore completely since we already have a valid profile
+        console.debug('[Sidebar] Ignoring', event, 'during navigation - profile already exists');
+        return;
+      }
+      
+      // We don't have a profile yet, handle events normally
       if (event === 'SIGNED_OUT') {
         // SUPER DEFENSIVE: Before clearing, check if there's still a valid token in localStorage
         // If there is, the user didn't actually sign out - Supabase just failed to refresh
@@ -205,25 +253,16 @@ const Sidebar: FC<SidebarProps> = ({
         return;
       }
       
-      // Only react to SIGNED_IN event explicitly
-      // Ignore all other events (TOKEN_REFRESHED, INITIAL_SESSION, etc.) if we already have a profile
+      // Only react to SIGNED_IN event if we don't have a profile
       if (event === 'SIGNED_IN') {
-        // Only update if we receive a valid session
-        if (sess?.user?.id) {
+        // Only update if we receive a valid session and we don't have a profile already
+        if (sess?.user?.id && !profile) {
           await loadProfile(sess.user.id);
         }
         return;
       }
       
       // For all other events (TOKEN_REFRESHED, INITIAL_SESSION, USER_UPDATED, etc.)
-      // ULTRA DEFENSIVE: Ignore completely if we already have a valid profile and session in localStorage
-      // This prevents profile loss when changing windows triggers these events
-      if (storedSession && profile) {
-        // We already have a valid profile, ignore this event completely
-        console.debug('[Sidebar] Ignoring', event, '- profile already exists');
-        return;
-      }
-      
       // Only update if we don't have a profile and receive a valid session
       if (sess?.user?.id && !profile) {
         await loadProfile(sess.user.id);

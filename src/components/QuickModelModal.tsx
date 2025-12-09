@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
-import { X, Sparkles, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { X, Sparkles, Image as ImageIcon, Loader2, Upload, FileUp, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, shouldIgnoreAuthEvent } from '../lib/supabaseClient';
 import { createModeloRA } from '../lib/data/modelos';
 import type { ModeloRAInsert, ModeloRA } from '../types/db';
 
@@ -31,6 +31,8 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
   const [showApiKeyInput, setShowApiKeyInput] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
 
   // Load API key from localStorage on mount
   useEffect(() => {
@@ -47,7 +49,40 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
     })();
     
     // Subscribe to auth changes - only once on mount
+    // DEFENSIVE: Ignore events when page is not visible to prevent session loss when changing windows
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Ignore ALL events when page is hidden or recently became visible
+      if (shouldIgnoreAuthEvent()) {
+        console.debug('[QuickModelModal] Ignoring auth event - page not ready for auth events');
+        return;
+      }
+
+      // SUPER DEFENSIVE: Before reacting to null session, check if there's still a valid token in localStorage
+      // If there is, the user didn't actually sign out - Supabase just failed to refresh
+      if (!session) {
+        try {
+          // First try the consistent key we use
+          let stored = localStorage.getItem('sb-auth-token');
+          // Fallback to legacy pattern if not found
+          if (!stored) {
+            const storageKey = Object.keys(localStorage).find(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+            if (storageKey) {
+              stored = localStorage.getItem(storageKey);
+            }
+          }
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed?.access_token && parsed?.user) {
+              console.warn('[QuickModelModal] Ignoring null session - valid token still in localStorage');
+              setIsAuthenticated(true);
+              return; // Keep authenticated state
+            }
+          }
+        } catch (e) {
+          // ignore localStorage errors
+        }
+      }
+
       setIsAuthenticated(!!session);
     });
     
@@ -460,100 +495,177 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
-      <div ref={modalRef} className="relative mx-4 w-full max-w-lg rounded-lg p-4 sm:p-6 bg-white shadow-lg overflow-y-auto max-h-[90vh]">
-        <button aria-label="Close" onClick={onClose} className="absolute top-3 right-3 p-2 rounded hover:bg-gray-100 z-10"><X size={18} /></button>
-        <h3 className="text-lg font-semibold mb-3">Crear Modelo RA rápido</h3>
-          <div className="space-y-3">
-            {leccionId && (
-              <div className="mb-2 text-sm text-gray-700">Adjuntar a la lección actual: <strong>#{leccionId}</strong></div>
-            )}
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div 
+        ref={modalRef} 
+        className="relative mx-4 w-full max-w-lg rounded-2xl bg-gradient-to-br from-white to-gray-50 shadow-2xl overflow-hidden"
+      >
+        {/* Header */}
+        <div className="relative bg-gradient-to-r from-purple-600 to-indigo-700 px-6 py-4">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Sparkles size={22} />
+            Crear Modelo RA
+          </h3>
+          <p className="text-purple-100 text-sm mt-1">Genera modelos 3D rápidamente</p>
+          <button 
+            aria-label="Cerrar" 
+            onClick={onClose} 
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+          >
+            <X size={18} className="text-white" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
+          {leccionId && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg border border-purple-200">
+              <span className="text-sm text-purple-700">
+                📚 Se adjuntará a la lección <strong>#{leccionId}</strong>
+              </span>
+            </div>
+          )}
+
+          {/* Nombre del modelo */}
           <div>
-            <label className="block mb-1">Nombre</label>
-            <input className="w-full border px-3 py-2 rounded" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nombre del modelo <span className="text-red-500">*</span>
+            </label>
+            <input 
+              className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              placeholder="Ej: Molécula de agua"
+            />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+
+          {/* Tipo y Archivo */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block mb-1">Tipo</label>
-              <input className="w-full border px-3 py-2 rounded" value={type} onChange={(e) => setType(e.target.value)} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+              <select
+                className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option value="glb">GLB</option>
+                <option value="gltf">GLTF</option>
+                <option value="usdz">USDZ</option>
+              </select>
             </div>
             <div>
-              <label className="block mb-1">Archivo (opcional)</label>
-              <input type="file" accept=".glb,.gltf,.usdz" className="w-full" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Archivo (opcional)</label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".glb,.gltf,.usdz"
+                className="hidden"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all text-sm text-gray-600"
+              >
+                <FileUp size={16} />
+                {file ? 'Cambiar' : 'Subir'}
+              </button>
             </div>
           </div>
 
-          {/* Image to 3D Generation Section */}
-          <div className="mt-3 p-3 border rounded-lg bg-gray-50">
-            <label className="block mb-2 font-medium">Generar desde imagen</label>
+          {file && (
+            <div className="flex items-center justify-between bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+              <span className="text-sm text-green-700">✓ {file.name}</span>
+              <button 
+                type="button" 
+                onClick={() => setFile(null)}
+                className="text-green-600 hover:text-green-800"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
+          {/* Sección de Generación desde Imagen */}
+          <div className="border rounded-xl p-4 bg-gradient-to-br from-gray-50 to-white">
+            <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <ImageIcon size={18} className="text-purple-600" />
+              Generar desde imagen
+            </label>
             
-            {/* Mode selector */}
-            <div className="flex gap-2 mb-3">
+            {/* Selector de modo */}
+            <div className="flex gap-2 mb-4">
               <button
                 type="button"
                 onClick={() => setGenerationMode('billboard')}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded border transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 transition-all ${
                   generationMode === 'billboard' 
-                    ? 'bg-blue-100 border-blue-500 text-blue-700' 
-                    : 'bg-white border-gray-300 hover:bg-gray-100'
+                    ? 'bg-blue-50 border-blue-500 text-blue-700 shadow-sm' 
+                    : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <ImageIcon size={16} />
-                <span className="text-sm">Billboard (rápido)</span>
+                <span className="text-sm font-medium">Billboard</span>
               </button>
               <button
                 type="button"
                 onClick={() => setGenerationMode('ai3d')}
-                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded border transition-colors ${
+                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border-2 transition-all ${
                   generationMode === 'ai3d' 
-                    ? 'bg-purple-100 border-purple-500 text-purple-700' 
-                    : 'bg-white border-gray-300 hover:bg-gray-100'
+                    ? 'bg-purple-50 border-purple-500 text-purple-700 shadow-sm' 
+                    : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                 }`}
               >
                 <Sparkles size={16} />
-                <span className="text-sm">3D con IA</span>
+                <span className="text-sm font-medium">3D con IA</span>
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 mb-2">
+            <p className="text-xs text-gray-500 mb-3 px-1">
               {generationMode === 'billboard' 
                 ? '⚡ Crea un plano texturizado con tu imagen (instantáneo)'
                 : '✨ Genera un modelo 3D real usando Meshy.ai (1-3 minutos)'}
             </p>
 
-            {/* API Key section for AI mode */}
+            {/* API Key para modo IA */}
             {generationMode === 'ai3d' && (
-              <div className="mb-3 p-2 bg-purple-50 rounded border border-purple-200">
+              <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
                 {showApiKeyInput || !meshyApiKey ? (
                   <div className="space-y-2">
-                    <label className="block text-xs text-purple-700">
-                      API Key de Meshy.ai (<a href="https://www.meshy.ai/api" target="_blank" rel="noreferrer" className="underline">obtener aquí</a>)
+                    <label className="block text-xs font-medium text-purple-700">
+                      API Key de Meshy.ai (
+                      <a href="https://www.meshy.ai/api" target="_blank" rel="noreferrer" className="underline hover:text-purple-900">
+                        obtener aquí
+                      </a>
+                      )
                     </label>
                     <div className="flex gap-2">
                       <input
                         type="password"
-                        className="flex-1 border px-2 py-1 rounded text-sm"
+                        className="flex-1 border border-purple-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
                         placeholder="msy_..."
                         value={meshyApiKeyInput}
                         onChange={(e) => setMeshyApiKeyInput(e.target.value)}
                       />
                       <button
                         type="button"
-                        className="px-3 py-1 bg-purple-600 text-white rounded text-sm"
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
                         onClick={saveApiKey}
                         disabled={!meshyApiKeyInput.trim()}
                       >
                         Guardar
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500">Pega tu API Key y presiona "Guardar" para confirmar</p>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-purple-700">✓ API Key configurada</span>
+                    <span className="text-sm text-purple-700 flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                      API Key configurada
+                    </span>
                     <button
                       type="button"
-                      className="text-xs text-purple-600 underline"
+                      className="text-sm text-purple-600 hover:text-purple-800 underline"
                       onClick={() => {
                         setMeshyApiKeyInput(meshyApiKey);
                         setShowApiKeyInput(true);
@@ -566,105 +678,160 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
               </div>
             )}
 
-            <input 
-              type="file" 
-              accept="image/*" 
-              className="w-full mb-2" 
-              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} 
+            {/* Selector de imagen estilizado */}
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
             />
-            
-            <div className="flex gap-2">
-              <button 
-                type="button" 
-                className={`flex-1 px-3 py-2 rounded text-white flex items-center justify-center gap-2 disabled:opacity-50 ${
-                  generationMode === 'ai3d' 
-                    ? 'bg-purple-600 hover:bg-purple-700' 
-                    : 'bg-indigo-500 hover:bg-indigo-600'
-                }`}
-                onClick={handleGenerate} 
-                disabled={!imageFile || isGenerating || (generationMode === 'ai3d' && !meshyApiKey)}
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    {generationMode === 'ai3d' ? `${aiProgress}%` : 'Procesando...'}
-                  </>
-                ) : (
-                  <>
-                    {generationMode === 'ai3d' ? <Sparkles size={16} /> : <ImageIcon size={16} />}
-                    {generationMode === 'ai3d' ? 'Generar Modelo 3D' : 'Generar Billboard'}
-                  </>
-                )}
-              </button>
-              <button 
-                type="button" 
-                className="px-3 py-2 rounded bg-gray-200 hover:bg-gray-300" 
-                onClick={() => { setImageFile(null); }}
-                disabled={isGenerating}
-              >
-                Limpiar
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all group mb-3"
+            >
+              <Upload size={20} className="text-gray-400 group-hover:text-purple-500" />
+              <span className="text-gray-600 group-hover:text-purple-600">
+                {imageFile ? imageFile.name : "Seleccionar imagen"}
+              </span>
+            </button>
 
-            {/* Progress bar for AI generation */}
+            {imageFile && (
+              <div className="flex items-center justify-between bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 mb-3">
+                <span className="text-sm text-blue-700">📷 {imageFile.name}</span>
+                <button 
+                  type="button" 
+                  onClick={() => setImageFile(null)}
+                  className="text-blue-600 hover:text-blue-800"
+                  disabled={isGenerating}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            
+            {/* Botón de generación */}
+            <button 
+              type="button" 
+              className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                generationMode === 'ai3d' 
+                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700' 
+                  : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+              }`}
+              onClick={handleGenerate} 
+              disabled={!imageFile || isGenerating || (generationMode === 'ai3d' && !meshyApiKey)}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  {generationMode === 'ai3d' ? `Generando... ${aiProgress}%` : 'Procesando...'}
+                </>
+              ) : (
+                <>
+                  {generationMode === 'ai3d' ? <Sparkles size={18} /> : <ImageIcon size={18} />}
+                  {generationMode === 'ai3d' ? 'Generar Modelo 3D' : 'Generar Billboard'}
+                </>
+              )}
+            </button>
+
+            {/* Barra de progreso para IA */}
             {isGenerating && generationMode === 'ai3d' && (
               <div className="mt-3">
-                <div className="h-2 rounded overflow-hidden bg-gray-200">
+                <div className="h-2.5 rounded-full overflow-hidden bg-gray-200">
                   <div 
-                    className="h-full bg-purple-600 transition-all duration-500" 
+                    className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500" 
                     style={{ width: `${aiProgress}%` }} 
                   />
                 </div>
-                <p className="text-xs text-purple-600 mt-1 flex items-center gap-1">
+                <p className="text-xs text-purple-600 mt-2 flex items-center gap-2">
                   <Loader2 size={12} className="animate-spin" />
                   {aiStatus || 'Procesando...'}
                 </p>
               </div>
             )}
 
-            {imageFile && (
-              <div className="mt-2 text-sm text-gray-700">📷 {imageFile.name}</div>
-            )}
-            {file && (
-              <div className="mt-2 text-sm text-green-700 font-medium">
-                ✓ GLB listo: {file.name}
+            {/* Archivo GLB generado */}
+            {file && !uploading && (
+              <div className="mt-3 flex items-center justify-between bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+                <span className="text-sm text-green-700 font-medium">✓ GLB listo: {file.name}</span>
               </div>
             )}
           </div>
 
+          {/* Descripción */}
           <div>
-            <label className="block mb-1">Descripción</label>
-            <textarea className="w-full border px-3 py-2 rounded" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <textarea 
+              className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none" 
+              value={description} 
+              onChange={(e) => setDescription(e.target.value)} 
+              rows={2}
+              placeholder="Descripción opcional del modelo..."
+            />
           </div>
 
+          {/* Barra de progreso de subida */}
           {uploading && (
-            <div className="mt-2 h-2 rounded overflow-hidden bg-gray-200">
-              <div className="h-full bg-green-600" style={{ width: `${progress}%` }} />
+            <div className="space-y-1">
+              <div className="h-2.5 rounded-full overflow-hidden bg-gray-200">
+                <div 
+                  className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-300" 
+                  style={{ width: `${progress}%` }} 
+                />
+              </div>
+              <p className="text-xs text-gray-500 text-center">{progress}% completado</p>
             </div>
           )}
 
+          {/* Modelo creado */}
           {createdModel && (
-            <div className="border rounded p-2 bg-gray-50">
+            <div className="border rounded-xl p-4 bg-green-50 border-green-200">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">Modelo creado</div>
+                <span className="text-sm font-medium text-green-700">✓ Modelo creado exitosamente</span>
                 <div className="flex items-center gap-2">
-                    {createdModel.archivo_url && (
-                    <button className="text-sm text-blue-600 underline" onClick={() => downloadFile(createdModel.archivo_url, `${createdModel.nombre_modelo}.glb`)}>
+                  {createdModel.archivo_url && (
+                    <button 
+                      className="flex items-center gap-1 text-sm text-green-600 hover:text-green-800 font-medium" 
+                      onClick={() => downloadFile(createdModel.archivo_url, `${createdModel.nombre_modelo}.glb`)}
+                    >
+                      <Download size={14} />
                       Descargar
                     </button>
                   )}
-                    {isAuthenticated ? null : (
-                      <div className="text-xs text-yellow-700 ml-2">Inicia sesión para gestionar / asociar el modelo</div>
-                    )}
                 </div>
               </div>
+              {!isAuthenticated && (
+                <p className="text-xs text-amber-600 mt-2">
+                  ⚠️ Inicia sesión para gestionar el modelo
+                </p>
+              )}
             </div>
           )}
 
-            <div className="flex justify-end gap-2 mt-3">
-              <button className="px-3 py-2 rounded bg-gray-200" onClick={onClose}>Cancelar</button>
-              <button className="px-3 py-2 rounded bg-blue-600 text-white disabled:opacity-50" onClick={uploadAndCreate} disabled={uploading || !name.trim() || !isAuthenticated}>{uploading ? 'Creando...' : 'Crear modelo'}</button>
-            </div>
+          {/* Botones de acción */}
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
+            <button 
+              className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors" 
+              onClick={onClose}
+            >
+              Cancelar
+            </button>
+            <button 
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" 
+              onClick={uploadAndCreate} 
+              disabled={uploading || !name.trim() || !isAuthenticated}
+            >
+              {uploading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  Creando...
+                </span>
+              ) : (
+                "Crear Modelo"
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>
