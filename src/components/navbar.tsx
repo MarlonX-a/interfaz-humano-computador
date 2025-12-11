@@ -383,8 +383,8 @@ export default function Navbar({ toggleSidebar, sidebarOpen, highContrast }: { t
           <div className="w-full hidden sm:block relative sm:ml-8 md:ml-12 lg:ml-16">
             <input
               type="text"
-              placeholder={language === "es" ? "Buscar..." : "Search..."}
-              aria-label={language === "es" ? "Buscar" : "Search"}
+              placeholder={t('search.placeholder')}
+              aria-label={t('search.placeholder')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -514,7 +514,7 @@ export default function Navbar({ toggleSidebar, sidebarOpen, highContrast }: { t
           <div className={`absolute inset-0 bg-black/40`} onClick={() => setSearchOpen(false)} />
           <div className={`${highContrast ? "bg-black text-yellow-300" : "bg-white text-gray-900"} z-50 w-full rounded-lg p-4 shadow-lg`}> 
             <div className="flex items-center">
-              <input autoFocus type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={language === "es" ? "Buscar..." : "Search..."} className={`w-full px-4 py-2 rounded border ${highContrast ? "border-yellow-300 bg-black text-yellow-300" : "border-gray-300 bg-white text-gray-900"}`} aria-label={language === "es" ? "Buscar" : "Search"} aria-controls="search-suggestions-mobile" aria-activedescendant={activeIndex >= 0 ? `suggestion-${suggestions[activeIndex]?.id}` : undefined} onKeyDown={(e) => {
+              <input autoFocus type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('search.placeholder')} className={`w-full px-4 py-2 rounded border ${highContrast ? "border-yellow-300 bg-black text-yellow-300" : "border-gray-300 bg-white text-gray-900"}`} aria-label={t('search.placeholder')} aria-controls="search-suggestions-mobile" aria-activedescendant={activeIndex >= 0 ? `suggestion-${suggestions[activeIndex]?.id}` : undefined} onKeyDown={(e) => {
                 if (suggestions.length === 0) return;
                 if (e.key === 'ArrowDown') {
                   e.preventDefault();

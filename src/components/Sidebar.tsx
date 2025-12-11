@@ -364,7 +364,7 @@ const Sidebar: FC<SidebarProps> = ({
 
           {/* Cerrar en móvil */}
           <div className="lg:hidden flex justify-end mb-4">
-            <button aria-label={t("close") ?? "Close sidebar"} aria-controls="main-sidebar" onClick={() => setSidebarOpen && setSidebarOpen(false)}>
+            <button aria-label={t("close")} aria-controls="main-sidebar" onClick={() => setSidebarOpen && setSidebarOpen(false)}>
               <X size={20} />
             </button>
           </div>
@@ -391,12 +391,23 @@ const Sidebar: FC<SidebarProps> = ({
               <button onClick={() => navigate('/periodic-table')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <FlaskConical size={16} /> <span>{t("periodicTable")}</span>
               </button>
+              <button onClick={() => navigate('/lessons')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+                <BookOpenText size={16} /> <span>{t("lessons.title")}</span>
+              </button>
               <button onClick={() => navigate('/chemical-reactions')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <FlaskConical size={16} /> <span>{t("chemicalReactions")}</span>
               </button>
+              
+              <button onClick={() => navigate('/articles')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+                <BookOpenText size={16} /> <span>{t("article")}</span>
+              </button>
             </div>
           )}
-
+          
+          {/* Contenido General (top-level item placed between Aprende and Experimentos) */}
+          <button onClick={() => navigate('/contents')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+            <BookOpenText size={18} /> <span>{t('contents.title')}</span>
+          </button>
           {/* Experimentos */}
           <button onClick={() => navigate('/experiments')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
             <FlaskConical size={16} /> <span>{t("experiments")}</span>
@@ -415,26 +426,26 @@ const Sidebar: FC<SidebarProps> = ({
 
           {openMenus.accesibilidad && (
             <div className="ml-6 mt-1 flex flex-col space-y-1">
-                <button aria-label={t('visualAlerts') || 'Visual Alerts'} title={t('visualAlerts') || 'Visual Alerts'} aria-pressed={visualAlertsEnabled} onClick={() => {
+                <button aria-label={t('visualAlerts')} title={t('visualAlerts')} aria-pressed={visualAlertsEnabled} onClick={() => {
                   const newVal = !visualAlertsEnabled;
                   setVisualAlertsEnabled(newVal);
                   try { localStorage.setItem('visualAlertsEnabled', JSON.stringify(newVal)); } catch(e) {}
                   // show a quick visual alert (if global trigger is available)
-                  try { (window as any).triggerVisualAlert?.(t('accessibility.visualAlertsToggled') || (newVal ? 'Visual alerts enabled' : 'Visual alerts disabled')); } catch(e) {}
-                  const toastMsg = newVal ? (t('accessibility.visualAlertsEnabled') || 'Visual alerts enabled') : (t('accessibility.visualAlertsDisabled') || 'Visual alerts disabled');
+                  try { (window as any).triggerVisualAlert?.(t('accessibility.visualAlertsToggled') || (newVal ? t('accessibility.visualAlertsEnabled') : t('accessibility.visualAlertsDisabled')) ); } catch(e) {}
+                  const toastMsg = newVal ? t('accessibility.visualAlertsEnabled') : t('accessibility.visualAlertsDisabled');
                   try { toast.success(toastMsg); } catch (e) {}
                 }} className="flex items-center justify-between w-full p-2 rounded hover:bg-blue-800 transition text-left">
                   <div className="flex items-center space-x-2"><Eye size={16} /> <span>{t("visualAlerts")}</span></div>
                   <div className={`w-2 h-2 rounded-full ${visualAlertsEnabled ? 'bg-emerald-400' : 'bg-gray-500'}`} aria-hidden />
                 </button>
 
-                  <button aria-label={t('voiceReading') || 'Voice Reading'} title={t('voiceReading') || 'Voice Reading'} aria-pressed={voiceReadingEnabled} onClick={() => {
+                  <button aria-label={t('voiceReading')} title={t('voiceReading')} aria-pressed={voiceReadingEnabled} onClick={() => {
                   const newVal = !voiceReadingEnabled;
                   setVoiceReadingEnabled(newVal);
                   try { localStorage.setItem('voiceReadingEnabled', JSON.stringify(newVal)); } catch(e) {}
                   // speak a short notification if enabled
-                  try { (window as any).speak?.(t('accessibility.voiceReadingToggled') || (newVal ? 'Voice reading enabled' : 'Voice reading disabled')); } catch(e) {}
-                    const toastMsg2 = newVal ? (t('accessibility.voiceReadingEnabled') || 'Voice reading enabled') : (t('accessibility.voiceReadingDisabled') || 'Voice reading disabled');
+                  try { (window as any).speak?.(t('accessibility.voiceReadingToggled') || (newVal ? t('accessibility.voiceReadingEnabled') : t('accessibility.voiceReadingDisabled')) ); } catch(e) {}
+                    const toastMsg2 = newVal ? t('accessibility.voiceReadingEnabled') : t('accessibility.voiceReadingDisabled');
                     try { toast.success(toastMsg2); } catch (e) {}
                 }} className="flex items-center justify-between w-full p-2 rounded hover:bg-blue-800 transition text-left">
                 <div className="flex items-center space-x-2"><Volume2 size={16} /> <span>{t("voiceReading")}</span></div>
@@ -447,9 +458,9 @@ const Sidebar: FC<SidebarProps> = ({
                   setTextSizeLarge(v);
                   try { localStorage.setItem('textSizeLarge', JSON.stringify(v)); } catch (e) {}
                   // visual alert or speech when toggled
-                  try { (window as any).triggerVisualAlert?.(t('accessibility.textSizeToggled') || (v ? 'Large text enabled' : 'Large text disabled')); } catch(e) {}
-                  try { (window as any).speak?.(t('accessibility.textSizeToggled') || (v ? 'Large text enabled' : 'Large text disabled')); } catch(e) {}
-                  const toastMsg3 = v ? (t('accessibility.textSizeEnabled') || 'Large text enabled') : (t('accessibility.textSizeDisabled') || 'Large text disabled');
+                  try { (window as any).triggerVisualAlert?.(t('accessibility.textSizeToggled') || (v ? t('accessibility.textSizeEnabled') : t('accessibility.textSizeDisabled')) ); } catch(e) {}
+                  try { (window as any).speak?.(t('accessibility.textSizeToggled') || (v ? t('accessibility.textSizeEnabled') : t('accessibility.textSizeDisabled')) ); } catch(e) {}
+                  const toastMsg3 = v ? t('accessibility.textSizeEnabled') : t('accessibility.textSizeDisabled');
                   try { toast.success(toastMsg3); } catch (e) {}
                 }}
                 aria-pressed={textSizeLarge}
@@ -464,9 +475,9 @@ const Sidebar: FC<SidebarProps> = ({
                   const v = !highContrast;
                   setHighContrast(v);
                   try { localStorage.setItem('highContrast', JSON.stringify(v)); } catch (e) {}
-                  try { (window as any).triggerVisualAlert?.(t('accessibility.highContrastToggled') || (v ? 'High contrast enabled' : 'High contrast disabled')); } catch(e) {}
-                  try { (window as any).speak?.(t('accessibility.highContrastToggled') || (v ? 'High contrast enabled' : 'High contrast disabled')); } catch(e) {}
-                  const toastMsg4 = v ? (t('accessibility.highContrastEnabled') || 'High contrast enabled') : (t('accessibility.highContrastDisabled') || 'High contrast disabled');
+                  try { (window as any).triggerVisualAlert?.(t('accessibility.highContrastToggled') || (v ? t('accessibility.highContrastEnabled') : t('accessibility.highContrastDisabled')) ); } catch(e) {}
+                  try { (window as any).speak?.(t('accessibility.highContrastToggled') || (v ? t('accessibility.highContrastEnabled') : t('accessibility.highContrastDisabled')) ); } catch(e) {}
+                  const toastMsg4 = v ? t('accessibility.highContrastEnabled') : t('accessibility.highContrastDisabled');
                   try { toast.success(toastMsg4); } catch (e) {}
                 }}
                 aria-pressed={highContrast}
@@ -485,7 +496,7 @@ const Sidebar: FC<SidebarProps> = ({
 
           {/* Historial */}
           <a onClick={() => navigate('/history')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition cursor-pointer">
-            <BookOpenText size={18} /> <span>{t('history.title') || 'Historial'}</span>
+            <BookOpenText size={18} /> <span>{t('history.title')}</span>
           </a>
 
           {/* Añadir contenido - visible solo para teachers */}
@@ -503,10 +514,10 @@ const Sidebar: FC<SidebarProps> = ({
           <button
             onClick={() => setHelpOpen(true)}
             className="w-full flex items-center justify-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-sm"
-            aria-label={t("help") || "Ayuda"}
+            aria-label={t("help")}
           >
             <span>❔</span>
-            <span>{t("help") || "Ayuda"}</span>
+            <span>{t("help")}</span>
           </button>
         </div>
       </aside>

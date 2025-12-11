@@ -27,6 +27,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   const { t } = useTranslation();
 
   const [lecciones, setLecciones] = useState<Leccion[]>([]);
+  const [pendingLecciones, setPendingLecciones] = useState<number[]>([]);
   const [form, setForm] = useState<RecordType>({
     id: undefined,
     leccion_id: undefined,
@@ -70,6 +71,8 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       { value: "molecule", label: t("addcontent.form.typeOptions.molecule") },
       { value: "atom", label: t("addcontent.form.typeOptions.atom") },
       { value: "experiment", label: t("addcontent.form.typeOptions.experiment") },
+      { value: "chemical-reaction", label: t("addcontent.form.typeOptions.chemicalReactions") },
+      { value: "periodic-table", label: t("addcontent.form.typeOptions.periodicTable") },
       { value: "article", label: t("addcontent.form.typeOptions.article") },
     ],
     [t]
@@ -106,14 +109,43 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   };
 
   useEffect(() => {
-    fetchLecciones();
-    fetchRecords();
+    // fetch records first to determine which lessons are already used
+    // then fetch available lessons (unused ones) for selection
+    (async () => {
+      await fetchRecords();
+      await fetchLeccionesAvailable();
+    })();
 
     // If we were navigated with ?lessonId=x, preselect
     const params = new URLSearchParams(window.location.search);
     const lessonIdParam = params.get("lessonId");
     if (lessonIdParam) {
       setForm((s) => ({ ...s, leccion_id: Number(lessonIdParam) }));
+    }
+  }, []);
+
+  // If a contentId is present in the URL, prefill form for editing
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const contentId = params.get('contentId');
+    if (contentId) {
+      (async () => {
+        const { data, error } = await supabase.from('contenido').select('id,leccion_id,titulo,texto_html,type,author,difficulty,tags,resources,orden').eq('id', Number(contentId)).single();
+        if (!error && data) {
+          editRecord({
+            id: data.id,
+            leccion_id: data.leccion_id,
+            title: data.titulo ?? '',
+            description: data.texto_html ?? '',
+            type: data.type ?? 'article',
+            author: data.author ?? '',
+            difficulty: data.difficulty ?? 'fácil',
+            tags: Array.isArray(data.tags) ? data.tags : [],
+            resources: Array.isArray(data.resources) ? data.resources : [],
+            orden: data.orden ?? undefined,
+          });
+        }
+      })();
     }
   }, []);
 
@@ -162,7 +194,16 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
     }
   };
 
-  const fetchLecciones = async () => {
+  const fetchLeccionesAvailable = async () => {
+    // get used lesson ids from contenidos
+    const { data: contenidoData, error: contenidoError } = await supabase.from('contenido').select('leccion_id');
+    if (contenidoError) {
+      console.error('Error fetching contenido for filtering lecciones', contenidoError);
+    }
+    const usedLessonIds = new Set((contenidoData ?? []).map((c: any) => c.leccion_id).filter(Boolean));
+    // add locally created/pending lesson ids to used set so they are not selectable elsewhere
+    pendingLecciones.forEach((id) => usedLessonIds.add(id));
+
     const { data, error } = await supabase
       .from("leccion")
       .select("id,titulo,descripcion,nivel,thumbnail_url")
@@ -170,13 +211,17 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
 
     if (error) {
       console.error("❌ Error al obtener lecciones:", error);
-      const msg = "Error al cargar lecciones";
+      const msg = t('addcontent.toast.loadLessonsError') || 'Error al cargar lecciones';
       toast.error(msg);
       try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
       try { (window as any).speak?.(msg); } catch (_) {}
     } else {
       // casteo seguro a Leccion[]
-      setLecciones((data ?? []) as Leccion[]);
+      // Filter out lecciones that are used by other contenidos. Keep the current one (if editing) selectable.
+      const currentLeccionId = form.leccion_id;
+      const filtered = (data ?? []) as Leccion[];
+      const available = filtered.filter(l => !usedLessonIds.has(l.id) || l.id === currentLeccionId);
+      setLecciones(available);
     }
   };
 
@@ -188,7 +233,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       .order("orden", { ascending: true });
     if (error) {
       console.error("❌ Error al obtener registros:", error);
-      const msg = "Error al cargar contenidos";
+      const msg = t('addcontent.toast.loadRecordsError') || 'Error al cargar contenidos';
       toast.error(msg);
       try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
       try { (window as any).speak?.(msg); } catch (_) {}
@@ -214,9 +259,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   const handleLessonCreated = (newId: number) => {
     // ponemos la nueva lección seleccionada en el formulario
     setForm((f) => ({ ...f, leccion_id: newId }));
-    // refrescamos lecciones
-    fetchLecciones();
-    const lmsg = "Lección creada y asignada";
+    // refrescamos lecciones y marcar la nueva lección como pendiente (no reutilizable)
+    setPendingLecciones((prev) => [...prev, newId]);
+    fetchLeccionesAvailable();
+    const lmsg = t('createLesson.success.createdAndAssigned');
     toast.success(lmsg);
     try { (window as any).triggerVisualAlert?.({ message: lmsg }); } catch (_) {}
     try { (window as any).speak?.(lmsg); } catch (_) {}
@@ -302,6 +348,17 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
     setTimeout(() => setSaveProgress(50), 200);
 
     if (isEditing && form.id) {
+        // When editing, ensure the selected leccion isn't used by a different content
+        if (form.leccion_id) {
+          const { data: existing, error: checkErr } = await supabase.from('contenido').select('id').eq('leccion_id', form.leccion_id).neq('id', form.id).limit(1).single();
+          if (!checkErr && existing) {
+            const msg = t('addcontent.errors.lessonAlreadyAssigned') || 'La lección ya está asociada a otro contenido';
+            toast.error(msg);
+            setSaving(false);
+            setSaveProgress(0);
+            return;
+          }
+        }
       const { error } = await supabase
         .from("contenido")
         .update(payload)
@@ -314,14 +371,27 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
         try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
         try { (window as any).speak?.(msg); } catch (_) {}
       } else {
-        const msg = "✅ Registro actualizado correctamente";
+        const msg = t('addcontent.toast.updateSuccess') || 'Registro actualizado';
         toast.success(msg);
         try { (window as any).triggerVisualAlert?.({ message: 'Registro actualizado' }); } catch (_) {}
-        try { (window as any).speak?.('Registro actualizado correctamente'); } catch (_) {}
+        try { (window as any).speak?.(msg); } catch (_) {}
         fetchRecords();
+        // update available lessons list so the used lesson gets excluded
+        fetchLeccionesAvailable();
         clearForm();
       }
     } else {
+      // Enforce uniqueness: do not allow creating a content using a leccion that's already used
+      if (form.leccion_id) {
+        const { data: existing, error: checkErr } = await supabase.from('contenido').select('id').eq('leccion_id', form.leccion_id).limit(1).single();
+        if (!checkErr && existing) {
+          const msg = t('addcontent.errors.lessonAlreadyAssigned') || 'La lección ya está asociada a otro contenido';
+          toast.error(msg);
+          setSaving(false);
+          setSaveProgress(0);
+          return;
+        }
+      }
       const { data, error } = await supabase
         .from("contenido")
         .insert([payload])
@@ -336,10 +406,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
         try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
         try { (window as any).speak?.(msg); } catch (_) {}
       } else {
-        const msg = "✅ Registro guardado correctamente";
+        const msg = t('addcontent.toast.saveSuccess') || 'Registro guardado correctamente';
         toast.success(msg);
         try { (window as any).triggerVisualAlert?.({ message: 'Registro guardado' }); } catch (_) {}
-        try { (window as any).speak?.('Registro guardado correctamente'); } catch (_) {}
+        try { (window as any).speak?.(msg); } catch (_) {}
         // history record for local undo + analytics
         try {
           const historyKey = 'tabla_maestra_history';
@@ -356,6 +426,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
         }
         fetchRecords();
         clearForm();
+        // refresh available lessons and clear pending if saved successfully
+        await fetchLeccionesAvailable();
+        // remove saved leccion from pending (because it's now referenced by saved content)
+        setPendingLecciones((prev) => prev.filter((x) => x !== (form.leccion_id ?? -1)));
         // After inserted, the data variable contains the inserted id(s)
         const insertedId = (data && data[0] && data[0].id) ? data[0].id : null;
         if (insertedId) {
@@ -368,12 +442,12 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                 const { error } = await supabase.from('contenido').delete().eq('id', insertedId);
                 if (!error) {
                   toast.dismiss(toastId);
-                  toast.success('Deshecho');
-                  try { (window as any).triggerVisualAlert?.({ message: 'Deshecho' }); } catch (_) {}
-                  try { (window as any).speak?.('Deshecho'); } catch (_) {}
+                  toast.success(t('undoSuccess') || 'Deshecho');
+                  try { (window as any).triggerVisualAlert?.({ message: t('undoSuccess') }); } catch (_) {}
+                  try { (window as any).speak?.(t('undoSuccess')); } catch (_) {}
                   fetchRecords();
                 } else {
-                  toast.error('Error deshaciendo: ' + error.message);
+                  toast.error(t('addcontent.toast.undoError', { message: error.message }) || ('Error deshaciendo: ' + error.message));
                 }
               }}>Deshacer</button>
             </div>
@@ -455,10 +529,12 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
       try { (window as any).speak?.(msg); } catch (_) {}
     } else {
-      toast.success("🗑️ Dato eliminado correctamente");
-      try { (window as any).triggerVisualAlert?.({ message: 'Dato eliminado' }); } catch (_) {}
-      try { (window as any).speak?.('Registro eliminado correctamente'); } catch (_) {}
+      toast.success(t('addcontent.toast.deleteSuccess') || '🗑️ Dato eliminado correctamente');
+      try { (window as any).triggerVisualAlert?.({ message: t('addcontent.toast.deleteSuccess') }); } catch (_) {}
+      try { (window as any).speak?.(t('addcontent.toast.deleteSuccess')); } catch (_) {}
       fetchRecords();
+      // After deletion, the lesson referenced by this content might become available again
+      fetchLeccionesAvailable();
     }
   };
 
@@ -498,6 +574,18 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       return textMatch || tagMatch || resourceMatch;
     });
   }, [filter, records]);
+
+  const getTypeLabel = (typeVal: string) => {
+    switch (typeVal) {
+      case 'molecule': return t('addcontent.form.typeOptions.molecule');
+      case 'atom': return t('addcontent.form.typeOptions.atom');
+      case 'experiment': return t('addcontent.form.typeOptions.experiment');
+      case 'chemical-reaction': return t('addcontent.form.typeOptions.chemicalReactions');
+      case 'periodic-table': return t('addcontent.form.typeOptions.periodicTable');
+      case 'article': return t('addcontent.form.typeOptions.article');
+      default: return typeVal;
+    }
+  };
 
   return (
     <main className="relative min-h-screen flex flex-col items-center justify-start">
@@ -668,7 +756,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                     </div>
                   )}
                   <div className="flex gap-2 items-center">
-                    <button type="button" className="px-3 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { try { (window as any).speak?.(`${form.title}. ${form.description ?? ''}`); } catch (e) {}; toast.success('Reading...'); }}>{t('addcontent.read') || 'Read'}</button>
+                    <button type="button" className="px-3 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { try { (window as any).speak?.(`${form.title}. ${form.description ?? ''}`); } catch (e) {}; toast.success(t('addcontent.form.reading') || 'Reading...'); }}>{t('addcontent.read') || 'Read'}</button>
                     <button type="submit" className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
                 {isEditing ? t("addcontent.form.update") : t("addcontent.form.save")}
                     </button>
@@ -690,7 +778,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="font-semibold">{r.title}</h4>
-                      <p className="text-xs text-gray-500">{r.type} • {r.author}</p>
+                      <p className="text-xs text-gray-500">{getTypeLabel(r.type)} • {r.author}</p>
                     </div>
                     <div className={`text-xs px-2 py-1 rounded ${difficultyColor(r.difficulty)}`}>{r.difficulty}</div>
                   </div>
@@ -722,7 +810,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                   filteredRecords.map((r) => (
                     <tr key={r.id} className="hover:bg-gray-100">
                       <td className="border p-2">{r.title}</td>
-                      <td className="border p-2">{r.type}</td>
+                      <td className="border p-2">{getTypeLabel(r.type)}</td>
                       <td className={`border p-2 ${difficultyColor(r.difficulty)}`}>{r.difficulty}</td>
                       <td className="border p-2">{r.tags.join(", ")}</td>
                       <td className="border p-2 flex gap-2">

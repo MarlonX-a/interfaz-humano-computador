@@ -33,14 +33,14 @@ export default function Login({ highContrast = false, textSizeLarge: _textSizeLa
     // Map Supabase errors to friendly messages for UI
     try {
       const message = raw?.message || raw?.error || String(raw);
-      if (!message) return t('login.errors.invalid') || 'Credenciales inválidas';
+      if (!message) return t('login.errors.invalid');
       const m = message.toLowerCase();
-      if (m.includes('invalid login') || m.includes('invalid-login') || m.includes('invalid email')) return t('login.errors.invalid') || 'Credenciales inválidas';
-      if (m.includes('network') || m.includes('timeout')) return t('login.errors.connection') || 'Error de conexión';
-      if (m.includes('confirmed') || m.includes('not confirmed')) return t('login.errors.unconfirmed') || 'Cuenta no confirmada';
-      return t('login.errors.invalid') || 'Credenciales inválidas';
+      if (m.includes('invalid login') || m.includes('invalid-login') || m.includes('invalid email')) return t('login.errors.invalid');
+      if (m.includes('network') || m.includes('timeout')) return t('login.errors.connection');
+      if (m.includes('confirmed') || m.includes('not confirmed')) return t('login.errors.unconfirmed');
+      return t('login.errors.invalid');
     } catch (e) {
-      return t('login.errors.invalid') || 'Credenciales inválidas';
+      return t('login.errors.invalid');
     }
   };
   
@@ -197,13 +197,13 @@ export default function Login({ highContrast = false, textSizeLarge: _textSizeLa
       localStorage.removeItem('loginBlockedUntil');
       setBlockedUntil(0);
       // announce success and redirect to home after successful login
-      try { (window as any).triggerVisualAlert?.({ message: 'Inicio de sesión exitoso' }); } catch (_) {}
-      try { (window as any).speak?.('Inicio de sesión exitoso'); } catch (_) {}
+      try { (window as any).triggerVisualAlert?.({ message: t('login.success') }); } catch (_) {}
+      try { (window as any).speak?.(t('login.success')); } catch (_) {}
       navigate('/');
     } catch (err: any) {
       // log the error and show toast
       console.error("signIn error:", err);
-      toast.error(err?.message || "Error connecting to Supabase");
+      toast.error(err?.message || t('login.errors.connection'));
       setLoading(false);
       return;
     }
@@ -221,7 +221,7 @@ export default function Login({ highContrast = false, textSizeLarge: _textSizeLa
           toast.error(friendly);
       return;
     }
-    toast.success('Hemos enviado un correo para restablecer la contraseña.');
+    toast.success(t('resetPassword.resendSuccess'));
   };
 
   return (

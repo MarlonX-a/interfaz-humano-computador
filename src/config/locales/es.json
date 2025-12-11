@@ -22,6 +22,8 @@
         "molecule": "Molécula",
         "atom": "Átomo",
         "experiment": "Experimento",
+        "chemicalReactions": "Reacciones químicas",
+        "periodicTable": "Tabla periódica",
         "article": "Artículo"
       },
       "difficultyOptions": {
@@ -60,14 +62,22 @@
       "authorRequired": "Autor requerido",
       "selectLessonRequired": "Selecciona una lección"
     },
+    "errors": {
+      "lessonAlreadyAssigned": "La lección ya está asignada a otro contenido"
+    },
     "toast": {
       "updateError": "Error actualizando registro",
       "updateSuccess": "Registro actualizado",
       "saveError": "Error guardando registro",
       "saveSuccess": "Registro guardado",
       "deleteError": "Error eliminando registro",
-      "deleteSuccess": "Registro eliminado"
+      "deleteSuccess": "Registro eliminado",
+      "undoError": "Error deshaciendo: {{message}}",
+      "deleteSuccessDetailed": "🗑️ Dato eliminado correctamente"
     }
+    ,
+    "loadLessonsError": "Error al cargar lecciones",
+    "loadRecordsError": "Error al cargar contenidos"
   },
   "sidebarNav": "Barra lateral de navegación",
   "sidebarLabel": "Navegación principal",
@@ -136,7 +146,12 @@
       "close": "Cerrar modal (Esc)",
       "navigateSuggestions": "Navegar sugerencias (↑/↓)",
       "applySuggestion": "Aplicar sugerencia (Enter)",
-      "tabNavigate": "Navegar entre campos (Tab)"
+         "tabNavigate": "Navegar entre campos (Tab)",
+         "openSidebar": "Abrir / cerrar la barra lateral",
+         "toggleHighContrast": "Alternar modo alto contraste",
+         "adjustTextSize": "Aumentar / reducir tamaño de texto",
+         "reload": "Recargar",
+         "closeModal": "Cerrar modales / overlays"
     },
     "history": {
       "title": "Historial de cambios",
@@ -186,6 +201,51 @@
   "updatedPeriodicTableDesc": "Accede a información detallada sobre todos los elementos químicos.",
   "virtualExperiments": "Experimentos virtuales disponibles",
   "virtualExperimentsDesc": "Realiza experimentos químicos sencillos directamente desde tu navegador.",
+
+  "home": {
+    "heroTitle": "Explora el mundo de la ciencia de forma interactiva",
+    "heroSubtitle": "Descubre conceptos, experimentos virtuales y avances científicos en un entorno diseñado para el aprendizaje dinámico.",
+    "heroButton": "Comienza a aprender",
+    "recentLessons": "Lecciones Recientes",
+    "recentLessonsHelp": "Las últimas lecciones añadidas a la plataforma",
+    "noLessonsYet": "Aún no hay lecciones disponibles",
+    "noDescription": "Sin descripción",
+    "sessionStarted": "Sesión iniciada correctamente",
+    "registerOrLogin": "Regístrate o inicia sesión"
+  },
+  "contents": {
+    "title": "Contenido General",
+    "noRecords": "No hay registros"
+  },
+  "lessons": {
+    "title": "Lecciones",
+    "noRecords": "No hay lecciones",
+    "loadError": "Error al cargar lecciones",
+    "card": {
+      "viewClass": "Ver clase",
+      "noThumbnail": "Sin thumbnail"
+    }
+  },
+  "contents.loadLessonsError": "Error al cargar lecciones",
+  "contents.loadRecordsError": "Error al cargar contenidos",
+  "contents.table": {
+    "title": "Título",
+    "type": "Tipo",
+    "lesson": "Lección",
+    "difficulty": "Dificultad",
+    "tags": "Etiquetas",
+    "actions": "Acciones",
+    "copy": "Copiar",
+    "copied": "Copiado al portapapeles"
+  },
+  "contents.card": {
+    "viewLesson": "Ver lección",
+    "edit": "Editar contenido",
+    "noDescription": "Sin descripción"
+  },
+  "common": {
+    "percentCompleted": "{{percent}}% completado"
+  },
 
   "register": {
     "title": "Crear cuenta",
@@ -237,6 +297,74 @@
         "email": "Los emails no coinciden",
         "password": "Las contraseñas no coinciden"
       }
+      ,
+      "models": {
+        "quickModel": {
+          "title": "Crear Modelo RA",
+          "description": "Genera modelos 3D rápidamente",
+          "nameLabel": "Nombre del modelo",
+          "namePlaceholder": "Ej: Molécula de agua",
+          "typeLabel": "Tipo",
+          "fileLabel": "Archivo (opcional)",
+          "upload": "Subir",
+          "change": "Cambiar",
+          "generateFromImage": "Generar desde imagen",
+          "generateModes": {
+            "billboard": "Billboard",
+            "ai3d": "3D con IA"
+          },
+          "generateDesc": {
+            "billboard": "⚡ Crea un plano texturizado con tu imagen (instantáneo)",
+            "ai3d": "✨ Genera un modelo 3D real usando Meshy.ai (1-3 minutos)"
+          },
+          "apiKeyLabel": "API Key de Meshy.ai",
+          "apiKeyGet": "obtener aquí",
+          "apiKeyPlaceholder": "msy_...",
+          "apiKeyConfigured": "API Key configurada",
+          "selectImage": "Seleccionar imagen",
+          "save": "Guardar",
+          "processing": "Procesando...",
+          "generatingWithProgress": "Generando... {{progress}}%",
+          "buttons": {
+            "generateAi": "Generar Modelo 3D",
+            "generateBillboard": "Generar Billboard",
+            "cancel": "Cancelar",
+            "create": "Crear Modelo",
+            "creating": "Creando..."
+          },
+          "success": {
+            "modelCreated": "Modelo creado",
+            "glbGenerated": "GLB generado correctamente",
+            "modelAiCreated": "¡Modelo 3D generado con IA exitosamente!",
+            "glbReady": "GLB listo"
+            ,
+            "apiKeySaved": "API Key guardada"
+          },
+          "attachedToLesson": "Se adjuntará a la lección #{{id}}",
+          "ai": {
+            "preparing": "Preparando imagen...",
+            "processing": "Procesando imagen...",
+            "creatingTask": "Creando tarea en Meshy.ai...",
+            "generating": "Generando modelo 3D con IA...",
+            "downloading": "Descargando modelo...",
+            "completed": "¡Completado!",
+            "status": "Estado: {{status}}"
+          },
+          "errors": {
+            "requiredName": "Nombre del modelo requerido",
+            "notAuthenticated": "Debes iniciar sesión para crear un modelo",
+            "invalidFileType": "Tipo de archivo no válido",
+            "fileTooLarge": "Archivo demasiado grande (max 50MB)",
+            "rlsError": "No se pudo crear el modelo por políticas RLS. Verifica sesión y políticas en el dashboard.",
+            "createError": "Error creando modelo",
+            "missingImage": "Sube una imagen primero",
+            "missingApiKey": "Necesitas una API Key de Meshy.ai",
+            "timeout": "Tiempo de espera agotado (10 min)",
+            "generationFailed": "Falló la generación 3D",
+            "loginToManageModel": "Inicia sesión para gestionar el modelo"
+          }
+        }
+      }
     }
   },
 
@@ -272,18 +400,47 @@
     }
   },
   "createLesson": {
-  "title": "Crear Lección",
-  "fields": {
-    "title": "Título",
-    "description": "Descripción",
-    "level": "Nivel",
-    "thumbnail": "Thumbnail URL"
+    "title": "Crear Lección",
+    "fields": {
+      "title": "Título",
+      "description": "Descripción",
+      "level": "Nivel",
+      "thumbnail": "Thumbnail URL",
+      "levelOptions": {
+        "basic": "Básico",
+        "intermediate": "Intermedio",
+        "advanced": "Avanzado"
+      }
+    },
+    "placeholders": {
+      "title": "Ej: Introducción a la Química Orgánica",
+      "description": "Describe brevemente el contenido de la lección..."
+    },
+    "buttons": {
+      "create": "Crear",
+      "cancel": "Cancelar",
+      "creating": "Creando..."
+    },
+    "errors": {
+      "titleRequired": "El título es requerido",
+      "notAuthenticatedToLinkModel": "Debes iniciar sesión para asociar el modelo a la lección",
+      "invalidFileType": "Tipo de archivo no válido. Usa .glb, .gltf o .usdz",
+      "fileTooLarge": "Archivo demasiado grande. Máximo 50 MB",
+      "uploadError": "Error subiendo modelo",
+      "linkModelError": "Error asociando el modelo: {{message}}",
+      "createError": "Error creando lección"
+    },
+    "headerDescription": "Completa los campos para crear tu lección",
+    "openInNewTab": "Abrir en nueva pestaña",
+    "success": {
+      "created": "Lección creada",
+      "modelUploadedAndLinked": "Modelo de RA subido y asociado a la lección"
+      ,
+      "createdAndAssigned": "Lección creada y asignada"
+    }
   },
-  "buttons": {
-    "create": "Crear",
-    "cancel": "Cancelar"
-  }
-  }
+  "previewUnavailable": "Previsualización no disponible.",
+  "openModel": "Abrir modelo"
 
   ,
   "resetPassword": {
@@ -312,6 +469,24 @@
 
     }
   },
+  "footer": {
+    "brand": "QuimicaUleam",
+    "addressLabel": "Dirección:",
+    "address": "Av. SantaMarta, Manta",
+    "authorLabel": "Autor:",
+    "author": "Dr. Josue Vinces",
+    "foundationLabel": "Fundación:",
+    "foundation": "20 de Octubre del 2025",
+    "support": "Soporte / Contacto",
+    "helpCenter": "Centro de ayuda",
+    "contactEmail": "josuvince@gmail.com",
+    "callUs": "Llámanos: 0984563204",
+    "policies": "Política y Términos de Uso",
+    "privacyPolicy": "Política de privacidad",
+    "termsOfUse": "Términos de uso",
+    "accessibility": "Accesibilidad",
+    "rightsReserved": "Todos los derechos reservados"
+  },
   "nav": {
     "home": "Inicio",
     "login": "Iniciar sesión",
@@ -320,6 +495,9 @@
     "resetPassword": "Recuperar contraseña"
   },
   "help": "Ayuda",
+  "search": {
+    "placeholder": "Buscar..."
+  },
   "sidebarOpen": "Abrir barra lateral",
   "sidebarClose": "Cerrar barra lateral"
 

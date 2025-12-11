@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
 import { X, Sparkles, Image as ImageIcon, Loader2, Upload, FileUp, Download } from 'lucide-react';
@@ -13,6 +14,7 @@ type GenerationMode = 'billboard' | 'ai3d';
 // Direct API calls are blocked by CORS, so we route through our backend
 
 export default function QuickModelModal({ open, onClose, onCreated, leccionId } : { open: boolean; onClose: () => void; onCreated: (model: ModeloRA) => void, leccionId?: number | null }) {
+  const { t } = useTranslation();
   const [name, setName] = useState('');
   const [type, setType] = useState('glb');
   const [description, setDescription] = useState('');
@@ -124,13 +126,13 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
 
   const uploadAndCreate = async () => {
     if (!name.trim()) {
-      toast.error('Nombre del modelo requerido');
+      toast.error(t('models.quickModel.errors.requiredName'));
       return;
     }
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = (sessionData as any)?.session?.user?.id;
     if (!userId) {
-      toast.error('Debes iniciar sesión para crear un modelo');
+      toast.error(t('models.quickModel.errors.notAuthenticated'));
       return;
     }
     setUploading(true);
@@ -141,12 +143,12 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
         const allowed = ['glb','gltf','usdz'];
         const ext = file.name.split('.').pop()?.toLowerCase();
         if (!ext || !allowed.includes(ext)) {
-          toast.error('Tipo de archivo no válido');
+          toast.error(t('models.quickModel.errors.invalidFileType'));
           return;
         }
         const MAX_SIZE = 50 * 1024 * 1024;
         if (file.size > MAX_SIZE) {
-          toast.error('Archivo demasiado grande (max 50MB)');
+          toast.error(t('models.quickModel.errors.fileTooLarge'));
           return;
         }
         // reuse xhr uploader from CreateLessonModal for progress
@@ -179,7 +181,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
         console.debug('[QuickModelModal] createModeloRA payload', modelPayload);
         created = await createModeloRA(modelPayload);
         setCreatedModel(created);
-        toast.success('Modelo creado');
+        toast.success(t('models.quickModel.success.modelCreated'));
         // Auto-download the model after successful creation (for quick preview)
         if (created?.archivo_url) {
           try {
@@ -190,7 +192,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
         }
         onCreated(created);
       } catch (err: any) {
-        console.error('Error creating modelo_ra', err);
+      console.error('Error creating modelo_ra', err);
         // detect RLS error message and show helpful guidance
         const msg = (err?.message || '')?.toLowerCase();
         if (msg.includes('row-level security') || msg.includes('row level security') || msg.includes('new row violates')) {
@@ -201,15 +203,15 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
           // Log detailed error info from Supabase (if present)
           const detail = JSON.stringify(err?.details || err, null, 2);
           console.error('RLS insert failure details:', detail);
-          toast.error('No se pudo crear el modelo por políticas RLS. Verifica session y políticas en el dashboard.');
+          toast.error(t('models.quickModel.errors.rlsError'));
         } else {
-          toast.error(err?.message || 'Error creando modelo');
+          toast.error(err?.message || t('models.quickModel.errors.createError'));
         }
         throw err; // rethrow so outer error handler can handle it too
       }
     } catch (err: any) {
       console.error('Quick model create error', err);
-      toast.error(err?.message || 'Error creando modelo');
+      toast.error(err?.message || t('models.quickModel.errors.createError'));
     } finally {
       setUploading(false);
       setTimeout(() => setProgress(0), 300);
@@ -219,7 +221,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
   // Generate a simple GLB from a single image by creating a textured plane and exporting with GLTFExporter
   const generateGlbFromImage = async () => {
     if (!imageFile) {
-      toast.error('Sube una imagen primero');
+      toast.error(t('models.quickModel.errors.missingImage'));
       return;
     }
     setIsGenerating(true);
@@ -293,10 +295,10 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
       const genFile = new File([blob], genFilename, { type: 'model/gltf-binary' });
       setFile(genFile);
       setType('glb');
-      toast.success('GLB generado correctamente');
+      toast.success(t('models.quickModel.success.glbGenerated'));
     } catch (err: any) {
       console.error('Error generando GLB desde imagen', err);
-      toast.error('Error generando el GLB: ' + (err?.message || '')); 
+      toast.error(err?.message || t('models.quickModel.errors.createError'));
     } finally {
       setIsGenerating(false);
     }
@@ -305,13 +307,13 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
   // Save API key to localStorage
   const saveApiKey = () => {
     if (!meshyApiKeyInput.trim()) {
-      toast.error('Ingresa una API Key válida');
+      toast.error(t('models.quickModel.errors.missingApiKey'));
       return;
     }
     setMeshyApiKey(meshyApiKeyInput.trim());
     localStorage.setItem('meshy_api_key', meshyApiKeyInput.trim());
     setShowApiKeyInput(false);
-    toast.success('API Key guardada');
+    toast.success(t('models.quickModel.success.apiKeySaved'));
   };
 
   // Convert image to base64 data URI
@@ -327,33 +329,33 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
   // Generate 3D model using Meshy.ai API via Supabase Edge Functions
   const generateWithMeshy = async () => {
     if (!imageFile) {
-      toast.error('Sube una imagen primero');
+      toast.error(t('models.quickModel.errors.missingImage'));
       return;
     }
     if (!meshyApiKey) {
       setShowApiKeyInput(true);
-      toast.error('Necesitas una API Key de Meshy.ai');
+      toast.error(t('models.quickModel.errors.missingApiKey'));
       return;
     }
 
     setIsGenerating(true);
     setAiProgress(0);
-    setAiStatus('Preparando imagen...');
+    setAiStatus(t('models.quickModel.ai.preparing'));
     console.log('🚀 Iniciando generación con Meshy.ai via Edge Functions...');
 
     try {
       // Step 1: Convert image to base64
-      setAiStatus('Procesando imagen...');
+      setAiStatus(t('models.quickModel.ai.processing'));
       console.log('📷 Convirtiendo imagen a base64...');
       const imageBase64 = await imageToBase64(imageFile);
       console.log('✅ Imagen convertida, tamaño base64:', imageBase64.length, 'caracteres');
       
       if (imageBase64.length > 5000000) {
-        throw new Error('La imagen es demasiado grande. Usa una imagen menor a 4MB.');
+        throw new Error(t('models.quickModel.errors.fileTooLarge'));
       }
       
       // Step 2: Create task via Edge Function
-      setAiStatus('Creando tarea en Meshy.ai...');
+      setAiStatus(t('models.quickModel.ai.creatingTask'));
       setAiProgress(10);
       console.log('📤 Enviando imagen via Edge Function...');
       
@@ -376,7 +378,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
 
       console.log('🆔 Task ID:', taskId);
       setAiProgress(20);
-      setAiStatus('Generando modelo 3D con IA...');
+      setAiStatus(t('models.quickModel.ai.generating'));
 
       // Step 3: Poll for task completion
       console.log('⏳ Iniciando polling de estado...');
@@ -391,7 +393,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
             
             if (attempts > maxAttempts) {
               if (pollingRef.current) clearInterval(pollingRef.current);
-              reject(new Error('Tiempo de espera agotado (10 min)'));
+              reject(new Error(t('models.quickModel.errors.timeout')));
               return;
             }
 
@@ -429,7 +431,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                   'PENDING': 'En cola...',
                   'IN_PROGRESS': 'Generando modelo 3D...',
                 };
-                setAiStatus(statusMessages[status] || `Estado: ${status}`);
+                  setAiStatus(statusMessages[status] || t('models.quickModel.ai.status', { status }));
               }
             } catch (pollError: any) {
               console.error('⚠️ Poll error:', pollError.message);
@@ -441,7 +443,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
       const modelUrl = await pollTask();
       
       setAiProgress(95);
-      setAiStatus('Descargando modelo...');
+      setAiStatus(t('models.quickModel.ai.downloading'));
       console.log('📥 Descargando modelo desde:', modelUrl);
 
       // Step 4: Download the GLB model
@@ -464,13 +466,13 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
       setFile(genFile);
       setType('glb');
       setAiProgress(100);
-      setAiStatus('¡Completado!');
+      setAiStatus(t('models.quickModel.ai.completed'));
       console.log('🎉 ¡Modelo generado exitosamente!');
-      toast.success('¡Modelo 3D generado con IA exitosamente!');
+      toast.success(t('models.quickModel.success.modelAiCreated'));
 
     } catch (err: any) {
       console.error('❌ Error final:', err);
-      const errorMsg = err?.message || 'Falló la generación 3D';
+      const errorMsg = err?.message || t('models.quickModel.errors.generationFailed');
       toast.error(errorMsg, { duration: 8000 });
       setAiStatus('');
       setAiProgress(0);
@@ -502,13 +504,13 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
       >
         {/* Header */}
         <div className="relative bg-gradient-to-r from-purple-600 to-indigo-700 px-6 py-4">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
             <Sparkles size={22} />
-            Crear Modelo RA
+            {t('models.quickModel.title')}
           </h3>
-          <p className="text-purple-100 text-sm mt-1">Genera modelos 3D rápidamente</p>
+          <p className="text-purple-100 text-sm mt-1">{t('models.quickModel.description')}</p>
           <button 
-            aria-label="Cerrar" 
+            aria-label={t('close')}
             onClick={onClose} 
             className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
           >
@@ -520,29 +522,29 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
         <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
           {leccionId && (
             <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 rounded-lg border border-purple-200">
-              <span className="text-sm text-purple-700">
-                📚 Se adjuntará a la lección <strong>#{leccionId}</strong>
+                  <span className="text-sm text-purple-700">
+                {t('models.quickModel.attachedToLesson', { id: leccionId })}
               </span>
             </div>
           )}
 
           {/* Nombre del modelo */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre del modelo <span className="text-red-500">*</span>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+              {t('models.quickModel.nameLabel')} <span className="text-red-500">*</span>
             </label>
             <input 
               className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all" 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
-              placeholder="Ej: Molécula de agua"
+              placeholder={t('models.quickModel.namePlaceholder')}
             />
           </div>
 
           {/* Tipo y Archivo */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('models.quickModel.typeLabel')}</label>
               <select
                 className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all bg-white"
                 value={type}
@@ -554,7 +556,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Archivo (opcional)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('models.quickModel.fileLabel')}</label>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -568,7 +570,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                 className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-all text-sm text-gray-600"
               >
                 <FileUp size={16} />
-                {file ? 'Cambiar' : 'Subir'}
+                {file ? t('models.quickModel.change') : t('models.quickModel.upload')}
               </button>
             </div>
           </div>
@@ -590,7 +592,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
           <div className="border rounded-xl p-4 bg-gradient-to-br from-gray-50 to-white">
             <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
               <ImageIcon size={18} className="text-purple-600" />
-              Generar desde imagen
+              {t('models.quickModel.generateFromImage')}
             </label>
             
             {/* Selector de modo */}
@@ -605,7 +607,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                 }`}
               >
                 <ImageIcon size={16} />
-                <span className="text-sm font-medium">Billboard</span>
+                <span className="text-sm font-medium">{t('models.quickModel.generateModes.billboard')}</span>
               </button>
               <button
                 type="button"
@@ -617,14 +619,14 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                 }`}
               >
                 <Sparkles size={16} />
-                <span className="text-sm font-medium">3D con IA</span>
+                <span className="text-sm font-medium">{t('models.quickModel.generateModes.ai3d')}</span>
               </button>
             </div>
 
             <p className="text-xs text-gray-500 mb-3 px-1">
               {generationMode === 'billboard' 
-                ? '⚡ Crea un plano texturizado con tu imagen (instantáneo)'
-                : '✨ Genera un modelo 3D real usando Meshy.ai (1-3 minutos)'}
+                ? t('models.quickModel.generateDesc.billboard')
+                : t('models.quickModel.generateDesc.ai3d')}
             </p>
 
             {/* API Key para modo IA */}
@@ -633,9 +635,9 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                 {showApiKeyInput || !meshyApiKey ? (
                   <div className="space-y-2">
                     <label className="block text-xs font-medium text-purple-700">
-                      API Key de Meshy.ai (
+                      {t('models.quickModel.apiKeyLabel')} (
                       <a href="https://www.meshy.ai/api" target="_blank" rel="noreferrer" className="underline hover:text-purple-900">
-                        obtener aquí
+                        {t('models.quickModel.apiKeyGet')}
                       </a>
                       )
                     </label>
@@ -643,7 +645,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                       <input
                         type="password"
                         className="flex-1 border border-purple-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-purple-500"
-                        placeholder="msy_..."
+                        placeholder={t('models.quickModel.apiKeyPlaceholder')}
                         value={meshyApiKeyInput}
                         onChange={(e) => setMeshyApiKeyInput(e.target.value)}
                       />
@@ -653,17 +655,17 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                         onClick={saveApiKey}
                         disabled={!meshyApiKeyInput.trim()}
                       >
-                        Guardar
+                        {t('models.quickModel.save')}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-purple-700 flex items-center gap-2">
+                      <span className="text-sm text-purple-700 flex items-center gap-2">
                       <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                      API Key configurada
+                      {t('models.quickModel.apiKeyConfigured')}
                     </span>
-                    <button
+                      <button
                       type="button"
                       className="text-sm text-purple-600 hover:text-purple-800 underline"
                       onClick={() => {
@@ -671,7 +673,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                         setShowApiKeyInput(true);
                       }}
                     >
-                      Cambiar
+                      {t('models.quickModel.change')}
                     </button>
                   </div>
                 )}
@@ -692,8 +694,8 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
               className="w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-dashed border-gray-300 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all group mb-3"
             >
               <Upload size={20} className="text-gray-400 group-hover:text-purple-500" />
-              <span className="text-gray-600 group-hover:text-purple-600">
-                {imageFile ? imageFile.name : "Seleccionar imagen"}
+                  <span className="text-gray-600 group-hover:text-purple-600">
+                {imageFile ? imageFile.name : t('models.quickModel.selectImage')}
               </span>
             </button>
 
@@ -725,12 +727,12 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
               {isGenerating ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  {generationMode === 'ai3d' ? `Generando... ${aiProgress}%` : 'Procesando...'}
+                  {generationMode === 'ai3d' ? t('models.quickModel.generatingWithProgress', { progress: aiProgress }) : t('models.quickModel.processing')}
                 </>
               ) : (
                 <>
                   {generationMode === 'ai3d' ? <Sparkles size={18} /> : <ImageIcon size={18} />}
-                  {generationMode === 'ai3d' ? 'Generar Modelo 3D' : 'Generar Billboard'}
+                  {generationMode === 'ai3d' ? t('models.quickModel.buttons.generateAi') : t('models.quickModel.buttons.generateBillboard')}
                 </>
               )}
             </button>
@@ -746,7 +748,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                 </div>
                 <p className="text-xs text-purple-600 mt-2 flex items-center gap-2">
                   <Loader2 size={12} className="animate-spin" />
-                  {aiStatus || 'Procesando...'}
+                  {aiStatus || t('models.quickModel.processing')}
                 </p>
               </div>
             )}
@@ -754,20 +756,20 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
             {/* Archivo GLB generado */}
             {file && !uploading && (
               <div className="mt-3 flex items-center justify-between bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-                <span className="text-sm text-green-700 font-medium">✓ GLB listo: {file.name}</span>
+                <span className="text-sm text-green-700 font-medium">✓ {t('models.quickModel.success.glbReady')}: {file.name}</span>
               </div>
             )}
           </div>
 
           {/* Descripción */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('models.quickModel.descriptionLabel')}</label>
             <textarea 
               className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all resize-none" 
               value={description} 
               onChange={(e) => setDescription(e.target.value)} 
               rows={2}
-              placeholder="Descripción opcional del modelo..."
+              placeholder={t('models.quickModel.descriptionPlaceholder')}
             />
           </div>
 
@@ -780,7 +782,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
                   style={{ width: `${progress}%` }} 
                 />
               </div>
-              <p className="text-xs text-gray-500 text-center">{progress}% completado</p>
+              <p className="text-xs text-gray-500 text-center">{t('common.percentCompleted', { percent: progress })}</p>
             </div>
           )}
 
@@ -788,7 +790,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
           {createdModel && (
             <div className="border rounded-xl p-4 bg-green-50 border-green-200">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-green-700">✓ Modelo creado exitosamente</span>
+                <span className="text-sm font-medium text-green-700">✓ {t('models.quickModel.success.modelCreated')}</span>
                 <div className="flex items-center gap-2">
                   {createdModel.archivo_url && (
                     <button 
@@ -803,7 +805,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
               </div>
               {!isAuthenticated && (
                 <p className="text-xs text-amber-600 mt-2">
-                  ⚠️ Inicia sesión para gestionar el modelo
+                  ⚠️ {t('models.quickModel.errors.loginToManageModel')}
                 </p>
               )}
             </div>
@@ -815,7 +817,7 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
               className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors" 
               onClick={onClose}
             >
-              Cancelar
+              {t('models.quickModel.buttons.cancel')}
             </button>
             <button 
               className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" 
@@ -825,10 +827,10 @@ export default function QuickModelModal({ open, onClose, onCreated, leccionId } 
               {uploading ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                  Creando...
+                  {t('models.quickModel.buttons.creating')}
                 </span>
               ) : (
-                "Crear Modelo"
+                t('models.quickModel.buttons.create')
               )}
             </button>
           </div>

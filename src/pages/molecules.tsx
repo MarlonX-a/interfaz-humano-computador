@@ -1,5 +1,4 @@
-import React from 'react';
-import MainContent from '../components/MainContent';
+// React import not required with the new JSX transform
 
 export default function Molecules() {
   return (
