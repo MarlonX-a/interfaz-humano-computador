@@ -111,14 +111,20 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
           .upsert([payloadProfile], { onConflict: 'id' });
         if (profileErr) {
           console.error('Error creando profile:', profileErr);
-          toast.error('Registro creado pero no se pudo crear el perfil: ' + profileErr.message);
+          const msg = 'Registro creado pero no se pudo crear el perfil: ' + profileErr.message;
+          toast.error(msg);
+          try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
+          try { (window as any).speak?.(msg); } catch (_) {}
           setSubmitting(false);
           return;
         }
       } else {
         // Si no hay sesión, confiamos en el trigger DB para crear el profile después del insert en auth.users,
         // o dejamos el usuario informando que verifique su correo (email verification).
-        toast.success('Registro creado. Verifica tu correo para continuar.');
+        const msg = 'Registro creado. Verifica tu correo para continuar.';
+        toast.success(msg);
+        try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
+        try { (window as any).speak?.(msg); } catch (_) {}
         setSubmitting(false);
         setTimeout(() => navigate('/login'), 1200);
         return;

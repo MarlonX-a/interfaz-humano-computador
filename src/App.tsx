@@ -11,8 +11,15 @@ import Login from "./pages/login";
 import Register from "./pages/register";
 import AddContentPage from "./pages/addContent";
 import HistoryPanel from "./components/HistoryPanel";
+import VisualAlert from './components/VisualAlert';
 import { Toaster } from "react-hot-toast";
 import ResetPassword from "./pages/resetPassword";
+import Molecules from "./pages/molecules";
+import Atoms from "./pages/atoms";
+import PeriodicTable from "./pages/periodicTable";
+import ChemicalReactions from "./pages/chemicalReactions";
+import Experiments from "./pages/experiments";
+import SettingsPage from "./pages/settings";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
@@ -22,8 +29,19 @@ function App() {
       return true;
     }
   });
-  const [textSizeLarge, setTextSizeLarge] = useState<boolean>(false);
-  const [highContrast, setHighContrast] = useState<boolean>(false);
+  const [textSizeLarge, setTextSizeLarge] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem('textSizeLarge') || 'false'); } catch (e) { return false; }
+  });
+  const [highContrast, setHighContrast] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem('highContrast') || 'false'); } catch (e) { return false; }
+  });
+  const [visualAlertsEnabled, setVisualAlertsEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem('visualAlertsEnabled') || 'false'); } catch (e) { return false; }
+  });
+  const [voiceReadingEnabled, setVoiceReadingEnabled] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem('voiceReadingEnabled') || 'false'); } catch (e) { return false; }
+  });
+  const [alert, setAlert] = useState<{ message: string; highlightSelector?: string } | null>(null);
 
   // Atajos de teclado globales
   useEffect(() => {
@@ -66,6 +84,45 @@ function App() {
     return () => window.removeEventListener('unhandledrejection', onUnhandled);
   }, []);
 
+  // Centralized speech function. Uses window.speechSynthesis when available.
+  useEffect(() => {
+    (window as any).speak = (text: string) => {
+      if (!voiceReadingEnabled) return;
+      try {
+        const utter = new SpeechSynthesisUtterance(typeof text === 'string' ? text : String(text));
+        // Use default voice, but respect user system voice selection.
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
+      } catch (e) {
+        console.debug('[App] speech error', e);
+      }
+    };
+  }, [voiceReadingEnabled]);
+
+  // Global visual alert trigger
+  useEffect(() => {
+    (window as any).triggerVisualAlert = (input: any) => {
+      if (!visualAlertsEnabled) return;
+      try {
+        if (!input) return;
+        const payload = typeof input === 'string' ? { message: input } : input;
+        setAlert(payload);
+      } catch (err) {}
+    };
+  }, [visualAlertsEnabled]);
+
+  // Persist toggles when changed
+  useEffect(() => {
+    try { localStorage.setItem('visualAlertsEnabled', JSON.stringify(visualAlertsEnabled)); } catch (e) {}
+  }, [visualAlertsEnabled]);
+
+  useEffect(() => {
+    try { localStorage.setItem('voiceReadingEnabled', JSON.stringify(voiceReadingEnabled)); } catch (e) {}
+  }, [voiceReadingEnabled]);
+
+  useEffect(() => { try { localStorage.setItem('textSizeLarge', JSON.stringify(textSizeLarge)); } catch (e) {} }, [textSizeLarge]);
+  useEffect(() => { try { localStorage.setItem('highContrast', JSON.stringify(highContrast)); } catch (e) {} }, [highContrast]);
+
   useEffect(() => {
     // Initialize a global auth listener so sign-out and auth events are available app-wide
     const sub = initAuthListener((event) => {
@@ -106,6 +163,10 @@ function App() {
             highContrast={highContrast}
             setHighContrast={setHighContrast}
             setSidebarOpen={setSidebarOpen}
+            visualAlertsEnabled={visualAlertsEnabled}
+            voiceReadingEnabled={voiceReadingEnabled}
+            setVisualAlertsEnabled={setVisualAlertsEnabled}
+            setVoiceReadingEnabled={setVoiceReadingEnabled}
           />
 
           {/* Contenido principal con padding superior = altura Navbar */}
@@ -117,8 +178,20 @@ function App() {
               <Route path="/add-content" element={<AddContentPage textSizeLarge={textSizeLarge} highContrast={highContrast} />} />
               <Route path="/reset-password" element={<ResetPassword textSizeLarge={textSizeLarge} highContrast={highContrast} />} />
               <Route path="/history" element={<HistoryPanel />} />
+              <Route path="/molecules" element={<Molecules />} />
+              <Route path="/atoms" element={<Atoms />} />
+              <Route path="/periodic-table" element={<PeriodicTable />} />
+              <Route path="/chemical-reactions" element={<ChemicalReactions />} />
+              <Route path="/experiments" element={<Experiments />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              {/* accessibility route removed; toggles are available in sidebar */}
             </Routes>
             <Toaster />
+            {!!alert && (
+              <>
+                <VisualAlert message={alert.message} highlightSelector={alert.highlightSelector} onDone={() => setAlert(null)} />
+              </>
+            )}
           </main>
         </div>
 
