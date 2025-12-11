@@ -104,16 +104,11 @@ export default function MainContent({
         {/* Contenido principal */}
         <div className="relative z-10 px-6 sm:px-12 max-w-3xl">
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold mb-4 leading-tight drop-shadow-lg">
-            {t("heroTitle", {
-              defaultValue: "Explora el mundo de la ciencia de forma interactiva",
-            })}
+            {t("home.heroTitle")}
           </h1>
 
           <p className="text-base sm:text-lg mb-6 opacity-90">
-            {t("heroSubtitle", {
-              defaultValue:
-                "Descubre conceptos, experimentos virtuales y avances científicos en un entorno diseñado para el aprendizaje dinámico.",
-            })}
+            {t("home.heroSubtitle")}
           </p>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 justify-center">
@@ -124,7 +119,7 @@ export default function MainContent({
                 : "bg-blue-600 text-white hover:bg-blue-700"
             }`}
           >
-            {t("heroButton", { defaultValue: "Comienza a aprender" })}
+            {t("home.heroButton")}
             </button>
 
             {isLoggedIn ? (
@@ -137,7 +132,7 @@ export default function MainContent({
                     : "bg-green-100 border border-green-300 text-green-800"
                 }`}
               >
-                {t("sessionStarted", { defaultValue: "Sesión iniciada correctamente" })}
+                {t("home.sessionStarted")}
               </div>
             ) : (
               <a
@@ -148,7 +143,7 @@ export default function MainContent({
                     : "bg-gray-100 border border-gray-300 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                {t("registerOrLogin", { defaultValue: "Regístrate o inicia sesión" })}
+                {t("home.registerOrLogin")}
               </a>
             )}
           </div>
@@ -167,8 +162,8 @@ export default function MainContent({
         <div className="flex flex-col sm:flex-row items-start gap-4 mb-4">
           <Newspaper className={`${highContrast ? 'text-yellow-300' : 'text-blue-600'}`} size={24} />
           <div className="flex flex-col">
-            <h2 className="text-lg font-semibold">{t("recentLessons", { defaultValue: "Lecciones Recientes" })}</h2>
-            <p className="text-sm text-gray-500 mt-1">{t("recentLessonsHelp", { defaultValue: "Las últimas lecciones añadidas a la plataforma" })}</p>
+            <h2 className="text-lg font-semibold">{t("home.recentLessons")}</h2>
+            <p className="text-sm text-gray-500 mt-1">{t("home.recentLessonsHelp")}</p>
           </div>
         </div>
 
@@ -186,7 +181,7 @@ export default function MainContent({
             </>
           ) : recentLessons.length === 0 ? (
             <div className="col-span-full text-center py-8 text-gray-500">
-              {t("noLessonsYet", { defaultValue: "Aún no hay lecciones disponibles" })}
+              {t("home.noLessonsYet")}
             </div>
           ) : (
             recentLessons.map((lesson) => (
@@ -199,12 +194,12 @@ export default function MainContent({
                 }`}
                 aria-labelledby={`lesson-${lesson.id}-title`}
               >
-                <a href={`/lesson/${lesson.id}`} className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
+                  <a href={`/lessons?lessonId=${lesson.id}`} className="block focus:outline-none focus:ring-2 focus:ring-blue-400 rounded-md">
                   <h3 id={`lesson-${lesson.id}-title`} className="font-medium">
                     {lesson.titulo}
                   </h3>
                   <p className={`text-sm mt-1 line-clamp-2 ${highContrast ? "text-yellow-200" : "text-gray-500"}`}>
-                    {lesson.descripcion || t("noDescription", { defaultValue: "Sin descripción" })}
+                    {lesson.descripcion || t("home.noDescription")}
                   </p>
                   <div className="flex items-center justify-between mt-2">
                     {lesson.nivel && (

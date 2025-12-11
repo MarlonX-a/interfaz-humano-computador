@@ -22,6 +22,8 @@
         "molecule": "Molecule",
         "atom": "Atom",
         "experiment": "Experiment",
+        "chemicalReactions": "Chemical reactions",
+        "periodicTable": "Periodic Table",
         "article": "Article"
       },
       "difficultyOptions": {
@@ -60,14 +62,22 @@
       "authorRequired": "Author is required",
       "selectLessonRequired": "Select a lesson"
     },
+    "errors": {
+      "lessonAlreadyAssigned": "Lesson already assigned to another content"
+    },
     "toast": {
       "updateError": "Error updating record",
       "updateSuccess": "Record updated successfully",
       "saveError": "Error saving record",
       "saveSuccess": "Record saved successfully",
       "deleteError": "Error deleting record",
-      "deleteSuccess": "Record deleted successfully"
+      "deleteSuccess": "Record deleted successfully",
+      "undoError": "Error undoing: {{message}}",
+      "deleteSuccessDetailed": "🗑️ Record deleted successfully"
     }
+    ,
+    "loadLessonsError": "Error loading lessons",
+    "loadRecordsError": "Error loading records"
   },
   "sidebarNav": "Sidebar navigation",
   "sidebarLabel": "Main navigation",
@@ -137,6 +147,12 @@
       "navigateSuggestions": "Navigate suggestions (↑/↓)",
       "applySuggestion": "Apply suggestion (Enter)",
       "tabNavigate": "Navigate between fields (Tab)"
+        ,
+        "openSidebar": "Open / close the sidebar",
+        "toggleHighContrast": "Toggle high contrast mode",
+        "adjustTextSize": "Increase / decrease text size",
+        "reload": "Reload",
+        "closeModal": "Close modals / overlays"
     },
     "history": {
       "title": "Change History",
@@ -186,6 +202,52 @@
   "updatedPeriodicTableDesc": "Access detailed information about all chemical elements.",
   "virtualExperiments": "Virtual Experiments Available",
   "virtualExperimentsDesc": "Perform simple chemical experiments directly from your browser.",
+
+  "home": {
+    "heroTitle": "Explore the world of science interactively",
+    "heroSubtitle": "Discover concepts, virtual experiments and scientific advances in an environment designed for dynamic learning.",
+    "heroButton": "Start learning",
+    "recentLessons": "Recent lessons",
+    "recentLessonsHelp": "The latest lessons added to the platform",
+    "noLessonsYet": "No lessons available yet",
+    "noDescription": "No description",
+    "sessionStarted": "Session started successfully",
+    "registerOrLogin": "Register or log in"
+  },
+  "contents": {
+    "title": "General Content",
+    "noRecords": "No records found"
+  },
+  "lessons": {
+    "title": "Lessons",
+    "noRecords": "No lessons found",
+    "loadError": "Error loading lessons",
+    "card": {
+      "viewClass": "View class",
+      "noThumbnail": "No thumbnail"
+    }
+  },
+  "contents.loadLessonsError": "Error loading lessons",
+  "contents.loadRecordsError": "Error loading records",
+  "contents.table": {
+    "title": "Title",
+    "type": "Type",
+    "lesson": "Lesson",
+    "difficulty": "Difficulty",
+    "tags": "Tags",
+    "actions": "Actions",
+    "copy": "Copy",
+    "copied": "Copied to clipboard"
+  },
+  "contents.card": {
+    "viewLesson": "View lesson",
+    "edit": "Edit content",
+    "noDescription": "No description"
+  },
+  "contents.classTitle": "Lesson #{{id}}",
+  "common": {
+    "percentCompleted": "{{percent}}% completed"
+  },
 
   "register": {
     "title": "Create Account",
@@ -237,6 +299,77 @@
         "email": "Emails do not match",
         "password": "Passwords do not match"
       }
+      ,
+      "models": {
+        "quickModel": {
+          "title": "Create AR Model",
+          "description": "Generate 3D models quickly",
+          "nameLabel": "Model name",
+          "namePlaceholder": "Eg: Water molecule",
+          "typeLabel": "Type",
+          "fileLabel": "File (optional)",
+          "upload": "Upload",
+          "change": "Change",
+          "generateFromImage": "Generate from image",
+          "generateModes": {
+            "billboard": "Billboard",
+            "ai3d": "AI 3D"
+          },
+          "generateDesc": {
+            "billboard": "⚡ Create a textured plane with your image (instant)",
+            "ai3d": "✨ Generate a real 3D model using Meshy.ai (1-3 minutes)"
+          },
+          "apiKeyLabel": "Meshy.ai API Key",
+          "apiKeyGet": "get it here",
+          "apiKeyPlaceholder": "msy_...",
+          "apiKeyConfigured": "API Key configured",
+          "selectImage": "Select image",
+          "save": "Save",
+          "processing": "Processing...",
+          "generatingWithProgress": "Generating... {{progress}}%",
+          "buttons": {
+            "generateAi": "Generate 3D Model",
+            "generateBillboard": "Generate Billboard",
+            "cancel": "Cancel",
+            "create": "Create Model",
+            "creating": "Creating..."
+          },
+          "success": {
+            "modelCreated": "Model created",
+            "glbGenerated": "GLB generated successfully",
+            "modelAiCreated": "3D model generated successfully with AI!",
+            "glbReady": "GLB ready"
+            ,
+            "apiKeySaved": "API Key saved"
+          },
+          "attachedToLesson": "Will be attached to lesson #{{id}}",
+          "ai": {
+            "preparing": "Preparing image...",
+            "processing": "Processing image...",
+            "creatingTask": "Creating Meshy.ai task...",
+            "generating": "Generating 3D model with AI...",
+            "downloading": "Downloading model...",
+            "completed": "Completed!",
+            "status": "Status: {{status}}"
+          },
+          "errors": {
+            "requiredName": "Model name required",
+            "notAuthenticated": "You must sign in to create a model",
+            "invalidFileType": "Invalid file type",
+            "fileTooLarge": "File too large (max 50MB)",
+            "rlsError": "Could not create the model due to RLS policies. Check session and policies in the dashboard.",
+            "createError": "Error creating model",
+            "missingImage": "Upload an image first",
+            "missingApiKey": "You need a Meshy.ai API Key",
+            "timeout": "Timeout (10 min)",
+            "generationFailed": "3D generation failed",
+            "loginToManageModel": "Sign in to manage the model"
+          }
+          ,
+          "previewUnavailable": "Preview unavailable.",
+          "openModel": "Open model"
+        }
+      }
     }
   },
 
@@ -277,12 +410,40 @@
           "title": "Title",
           "description": "Description",
           "level": "Level",
-          "thumbnail": "Thumbnail URL"
+          "thumbnail": "Thumbnail URL",
+          "levelOptions": {
+            "basic": "Basic",
+            "intermediate": "Intermediate",
+            "advanced": "Advanced"
+          }
+        },
+        "placeholders": {
+          "title": "Eg: Intro to Organic Chemistry",
+          "description": "Briefly describe the lesson..."
         },
         "buttons": {
           "create": "Create",
-          "cancel": "Cancel"
+          "cancel": "Cancel",
+          "creating": "Creating..."
         }
+      ,
+      "errors": {
+        "titleRequired": "Title is required",
+        "notAuthenticatedToLinkModel": "You must be signed in to associate the model with the lesson",
+        "invalidFileType": "Invalid file type. Use .glb, .gltf or .usdz",
+        "fileTooLarge": "File too large. Max 50 MB",
+        "uploadError": "Error uploading model",
+        "linkModelError": "Error linking model: {{message}}",
+        "createError": "Error creating lesson"
+      },
+      "headerDescription": "Fill the fields to create your lesson",
+      "openInNewTab": "Open in new tab",
+      "success": {
+        "created": "Lesson created",
+        "modelUploadedAndLinked": "RA model uploaded and linked to the lesson"
+        ,
+        "createdAndAssigned": "Lesson created and assigned"
+      }
 },
   "resetPassword": {
     "title": "Reset password",
@@ -309,6 +470,24 @@
       "updateFailed": "Error updating password."
     }
   },
+  "footer": {
+    "brand": "QuimicaUleam",
+    "addressLabel": "Address:",
+    "address": "Av. SantaMarta, Manta",
+    "authorLabel": "Author:",
+    "author": "Dr. Josue Vinces",
+    "foundationLabel": "Foundation:",
+    "foundation": "20th October 2025",
+    "support": "Support / Contact",
+    "helpCenter": "Help center",
+    "contactEmail": "josuvince@gmail.com",
+    "callUs": "Call us: 0984563204",
+    "policies": "Policy & Terms of Use",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfUse": "Terms of Use",
+    "accessibility": "Accessibility",
+    "rightsReserved": "All rights reserved"
+  },
 
   "nav": {
     "home": "Home",
@@ -318,6 +497,9 @@
     "resetPassword": "Reset Password"
   },
   "help": "Help",
+  "search": {
+    "placeholder": "Search..."
+  },
   "sidebarOpen": "Open sidebar",
   "sidebarClose": "Close sidebar"
  }

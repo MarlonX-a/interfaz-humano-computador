@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useTranslation } from 'react-i18next';
 import { X, Upload, FileUp, Sparkles } from "lucide-react";
 import toast from "react-hot-toast";
 import { createLeccion } from "../lib/data/lecciones";
@@ -18,6 +19,7 @@ export default function CreateLessonModal({
   onCreated: (newId: number) => void;
   parentLeccionId?: number | null;
 }) {
+  const { t } = useTranslation();
   const [titulo, setTitulo] = useState("");
   const [descripcion, setDescripcion] = useState("");
   const [nivel, setNivel] = useState("");
@@ -57,13 +59,13 @@ export default function CreateLessonModal({
       }
     }, []);
     if (!src) return null;
-    return (
+      return (
       <div>
         {hasViewer ? (
           // @ts-ignore - model-viewer element
           <model-viewer src={src} alt={alt || 'modelo'} style={{ width: '100%', height: 200 }} camera-controls auto-rotate />
         ) : (
-          <div className="text-sm text-gray-700">Previsualización no disponible. <a className="text-blue-600 underline" target="_blank" rel="noreferrer" href={src}>Abrir modelo</a></div>
+          <div className="text-sm text-gray-700">{t('models.previewUnavailable')} <a className="text-blue-600 underline" target="_blank" rel="noreferrer" href={src}>{t('models.openModel')}</a></div>
         )}
       </div>
     );
@@ -91,7 +93,7 @@ export default function CreateLessonModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!titulo.trim()) {
-      toast.error("El título es requerido");
+      toast.error(t('createLesson.errors.titleRequired'));
       return;
     }
     setIsLoading(true);
@@ -106,7 +108,7 @@ export default function CreateLessonModal({
         created_by: userId || null,
       };
       const created = await createLeccion(payload);
-      toast.success("Lección creada");
+      toast.success(t('createLesson.success.created'));
       onCreated(created.id);
       // If we have a pending quick created model, link it to the leccion
       if (pendingQuickModel) {
@@ -114,13 +116,13 @@ export default function CreateLessonModal({
           const { data: sessionData } = await supabase.auth.getSession();
           const userId = (sessionData as any)?.session?.user?.id;
           if (!userId) {
-            toast.error('Debes iniciar sesión para asociar el modelo a la lección');
+            toast.error(t('createLesson.errors.notAuthenticatedToLinkModel'));
           } else {
             await updateModeloRA(pendingQuickModel.id ?? pendingQuickModel, { leccion_id: created.id });
           }
         } catch (err: any) {
           console.warn('Error linking quick model', err);
-          toast.error('Error asociando el modelo: ' + (err?.message || ''));        
+          toast.error(t('createLesson.errors.linkModelError', { message: err?.message || '' }));
         }
         setPendingQuickModel(null);
       }
@@ -130,12 +132,12 @@ export default function CreateLessonModal({
         const allowed = ["glb", "gltf", "usdz"];
         const ext = modelFile.name.split('.').pop()?.toLowerCase();
         if (!ext || !allowed.includes(ext)) {
-          toast.error("Tipo de archivo no válido. Usa .glb, .gltf o .usdz");
+          toast.error(t('createLesson.errors.invalidFileType'));
           // skip upload, continue
         } else {
           const MAX_SIZE = 50 * 1024 * 1024; // 50MB
           if (modelFile.size > MAX_SIZE) {
-            toast.error("Archivo demasiado grande. Máximo 50 MB");
+            toast.error(t('createLesson.errors.fileTooLarge'));
           } else {
             setUploading(true);
             setUploadProgress(0);
@@ -196,7 +198,7 @@ export default function CreateLessonModal({
               } as any;
               console.debug('[CreateLessonModal] createModeloRA payload', modelPayload);
               await createModeloRA(modelPayload);
-              toast.success('Modelo de RA subido y asociado a la lección');
+              toast.success(t('createLesson.success.modelUploadedAndLinked'));
               setUploadProgress(100);
               setUploadedModelUrl(archivo_url);
                 // Auto-download to preview the uploaded model
@@ -218,7 +220,7 @@ export default function CreateLessonModal({
               setModelType("");
             } catch (err: any) {
               console.error('upload exception', err);
-              toast.error(err?.message || 'Error subiendo modelo');
+              toast.error(err?.message || t('createLesson.errors.uploadError'));
             } finally {
               setUploading(false);
               setTimeout(() => setUploadProgress(0), 400);
@@ -234,7 +236,7 @@ export default function CreateLessonModal({
       onClose();
     } catch (err: any) {
       console.error(err);
-      toast.error(err?.message || "Error creando lección");
+      toast.error(err?.message || t('createLesson.errors.createError'));
     } finally {
       setIsLoading(false);
     }
@@ -265,11 +267,11 @@ export default function CreateLessonModal({
           {/* Header */}
           <div className="relative bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
             <h3 id="create-lesson-title" className="text-xl font-bold text-white">
-              ✨ Crear Nueva Lección
+              ✨ {t('createLesson.title')}
             </h3>
-            <p className="text-blue-100 text-sm mt-1">Completa los campos para crear tu lección</p>
+            <p className="text-blue-100 text-sm mt-1">{t('createLesson.headerDescription') || 'Completa los campos para crear tu lección'}</p>
             <button 
-              aria-label="Cerrar" 
+              aria-label={t('close')} 
               onClick={onClose} 
               className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
             >
@@ -282,50 +284,50 @@ export default function CreateLessonModal({
             {/* Título */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Título <span className="text-red-500">*</span>
+                {t('createLesson.fields.title')} <span className="text-red-500">*</span>
               </label>
               <input 
                 value={titulo} 
                 onChange={(e) => setTitulo(e.target.value)} 
                 className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
-                placeholder="Ej: Introducción a la Química Orgánica"
+                placeholder={t('createLesson.placeholders.title') || 'Ej: Introducción a la Química Orgánica'}
               />
             </div>
 
             {/* Descripción */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('createLesson.fields.description')}</label>
               <textarea 
                 value={descripcion} 
                 onChange={(e) => setDescripcion(e.target.value)} 
                 className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none" 
                 rows={3} 
-                placeholder="Describe brevemente el contenido de la lección..."
+                placeholder={t('createLesson.placeholders.description') || 'Describe brevemente el contenido de la lección...'}
               />
             </div>
 
             {/* Nivel y Thumbnail */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nivel</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('createLesson.fields.level')}</label>
                 <select
                   value={nivel}
                   onChange={(e) => setNivel(e.target.value)}
                   className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all bg-white"
                 >
                   <option value="">Seleccionar...</option>
-                  <option value="Básico">Básico</option>
-                  <option value="Intermedio">Intermedio</option>
-                  <option value="Avanzado">Avanzado</option>
+                  <option value="Básico">{t('createLesson.fields.levelOptions.basic') || 'Básico'}</option>
+                  <option value="Intermedio">{t('createLesson.fields.levelOptions.intermediate') || 'Intermedio'}</option>
+                  <option value="Avanzado">{t('createLesson.fields.levelOptions.advanced') || 'Avanzado'}</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Thumbnail URL</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{t('createLesson.fields.thumbnail')}</label>
                 <input 
                   value={thumbnail_url} 
                   onChange={(e) => setThumbnailUrl(e.target.value)} 
                   className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
-                  placeholder="https://..."
+                  placeholder={t('resourcePlaceholder') || 'https://...'}
                 />
               </div>
             </div>
@@ -377,13 +379,13 @@ export default function CreateLessonModal({
                     <input 
                       value={modelName} 
                       onChange={(e) => setModelName(e.target.value)} 
-                      placeholder="Nombre del modelo" 
+                      placeholder={t('models.quickModel.namePlaceholder') || 'Nombre del modelo'} 
                       className="border border-gray-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" 
                     />
                     <input 
                       value={modelType} 
                       onChange={(e) => setModelType(e.target.value)} 
-                      placeholder="Tipo (glb, usdz)" 
+                      placeholder={t('models.quickModel.typeLabel') || 'Tipo (glb, usdz)'} 
                       className="border border-gray-300 px-3 py-2 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" 
                     />
                   </div>
@@ -398,7 +400,7 @@ export default function CreateLessonModal({
                         style={{ width: `${uploadProgress}%` }} 
                       />
                     </div>
-                    <p className="text-xs text-gray-500 text-center">{uploadProgress}% completado</p>
+                    <p className="text-xs text-gray-500 text-center">{t('common.percentCompleted', { percent: uploadProgress })}</p>
                   </div>
                 )}
 
@@ -413,7 +415,7 @@ export default function CreateLessonModal({
                         rel="noreferrer" 
                         href={uploadedModelUrl}
                       >
-                        Abrir en nueva pestaña
+                        {t('createLesson.openInNewTab') || 'Abrir en nueva pestaña'}
                       </a>
                     </div>
                     <ModelPreview src={uploadedModelUrl} alt={modelName || 'Modelo'} />
@@ -460,7 +462,7 @@ export default function CreateLessonModal({
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-medium hover:from-purple-600 hover:to-indigo-700 transition-all shadow-md hover:shadow-lg"
                 >
                   <Sparkles size={18} />
-                  Crear modelo RA con IA
+                    {t('models.quickModel.buttons.generateAi')}
                 </button>
               </div>
             </div>
@@ -473,7 +475,7 @@ export default function CreateLessonModal({
                 className="px-5 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors" 
                 onClick={onClose}
               >
-                Cancelar
+                {t('createLesson.buttons.cancel')}
               </button>
               <button 
                 type="submit" 
@@ -483,10 +485,10 @@ export default function CreateLessonModal({
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    Creando...
+                    {t('createLesson.buttons.creating')}
                   </span>
                 ) : (
-                  "Crear Lección"
+                  t('createLesson.buttons.create')
                 )}
               </button>
             </div>

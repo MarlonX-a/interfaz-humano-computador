@@ -20,6 +20,10 @@ import PeriodicTable from "./pages/periodicTable";
 import ChemicalReactions from "./pages/chemicalReactions";
 import Experiments from "./pages/experiments";
 import SettingsPage from "./pages/settings";
+import Articles from "./pages/articles";
+import ContentsPage from "./pages/contents";
+import ContenidoPage from "./pages/contenido";
+import LessonsPage from "./pages/lessons";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
@@ -183,6 +187,11 @@ function App() {
               <Route path="/periodic-table" element={<PeriodicTable />} />
               <Route path="/chemical-reactions" element={<ChemicalReactions />} />
               <Route path="/experiments" element={<Experiments />} />
+              <Route path="/articles" element={<Articles />} />
+              <Route path="/contents" element={<ContentsPage />} />
+              {/* 'clase' route removed: view-only lessons page (/lessons) replaced the need for per-lesson route */}
+              <Route path="/contenido/:contentId" element={<ContenidoPage />} />
+              <Route path="/lessons" element={<LessonsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               {/* accessibility route removed; toggles are available in sidebar */}
             </Routes>

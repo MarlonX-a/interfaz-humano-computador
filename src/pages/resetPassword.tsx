@@ -35,7 +35,7 @@ export default function ResetPassword({ highContrast = false, textSizeLarge = fa
         setSessionPresent(true);
       } else {
         setSessionPresent(false);
-        setError("El enlace es inválido o expiró.");
+        setError(t('resetPassword.invalidOrExpired'));
       }
 
       setLoading(false);
@@ -127,21 +127,21 @@ export default function ResetPassword({ highContrast = false, textSizeLarge = fa
         </h2>
 
         {sessionPresent === null && (
-          <div className="text-center text-sm text-gray-600">
-            {t("resetPassword.checkingSession") || "Verificando enlace..."}
+            <div className="text-center text-sm text-gray-600">
+            {t('resetPassword.checkingSession')}
           </div>
         )}
 
         {sessionPresent === false && (
           <>
-            <p className="text-sm text-gray-700 mb-4">
-              {t("resetPassword.invalidOrExpired") || "El enlace ha expirado o no es válido."}
+              <p className="text-sm text-gray-700 mb-4">
+              {t('resetPassword.invalidOrExpired')}
             </p>
 
             <div className="space-y-3">
               <input
                 type="email"
-                placeholder={t("resetPassword.emailPlaceholder") || "Correo electrónico"}
+                placeholder={t('resetPassword.emailPlaceholder')}
                 value={emailForResend}
                 onChange={(e) => setEmailForResend(e.target.value)}
                 className="w-full border rounded-lg px-3 py-2"
@@ -155,7 +155,7 @@ export default function ResetPassword({ highContrast = false, textSizeLarge = fa
                 disabled={loading}
                 className={`w-full py-3 sm:py-2 rounded-lg font-medium ${loading ? "bg-gray-400" : "bg-green-600 hover:bg-green-700 text-white"}`}
               >
-                {loading ? "Enviando..." : "Enviar correo de recuperación"}
+                {loading ? t('resetPassword.resending') : t('resetPassword.resend')}
               </button>
             </div>
           </>
@@ -210,7 +210,7 @@ export default function ResetPassword({ highContrast = false, textSizeLarge = fa
                 disabled={loading}
                 className={`w-full py-3 sm:py-2 rounded-lg font-medium ${loading ? "bg-gray-400" : "bg-green-600 hover:bg-green-700 text-white"}`}
               >
-                {loading ? "Actualizando..." : "Actualizar contraseña"}
+                {loading ? t('resetPassword.updating') : t('resetPassword.submit')}
               </button>
             </div>
           </>
