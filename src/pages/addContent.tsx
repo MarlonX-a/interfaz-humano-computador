@@ -170,7 +170,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
 
     if (error) {
       console.error("❌ Error al obtener lecciones:", error);
-      toast.error("Error al cargar lecciones");
+      const msg = "Error al cargar lecciones";
+      toast.error(msg);
+      try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
+      try { (window as any).speak?.(msg); } catch (_) {}
     } else {
       // casteo seguro a Leccion[]
       setLecciones((data ?? []) as Leccion[]);
@@ -185,7 +188,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       .order("orden", { ascending: true });
     if (error) {
       console.error("❌ Error al obtener registros:", error);
-      toast.error("Error al cargar contenidos");
+      const msg = "Error al cargar contenidos";
+      toast.error(msg);
+      try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
+      try { (window as any).speak?.(msg); } catch (_) {}
     } else {
       // mapeo DB -> UI
     const mapped: RecordType[] = (data ?? []).map((c: any) => ({
@@ -210,7 +216,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
     setForm((f) => ({ ...f, leccion_id: newId }));
     // refrescamos lecciones
     fetchLecciones();
-    toast.success("Lección creada y asignada");
+    const lmsg = "Lección creada y asignada";
+    toast.success(lmsg);
+    try { (window as any).triggerVisualAlert?.({ message: lmsg }); } catch (_) {}
+    try { (window as any).speak?.(lmsg); } catch (_) {}
   };
 
   const addTag = (tag: string) => {
@@ -267,7 +276,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   const saveRecord = async () => {
     const e = validateFields();
     if (Object.keys(e).length > 0) {
-      toast.error(Object.values(e)[0]);
+      const errMsg = Object.values(e)[0] as string;
+      toast.error(errMsg);
+      try { (window as any).triggerVisualAlert?.({ message: errMsg }); } catch (_) {}
+      try { (window as any).speak?.(errMsg); } catch (_) {}
       return;
     }
 
@@ -297,9 +309,15 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
 
       if (error) {
         console.error("❌ Error al actualizar:", error);
-        toast.error(`Error al actualizar: ${error.message}`);
+        const msg = `Error al actualizar: ${error.message}`;
+        toast.error(msg);
+        try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
+        try { (window as any).speak?.(msg); } catch (_) {}
       } else {
-        toast.success("✅ Registro actualizado correctamente");
+        const msg = "✅ Registro actualizado correctamente";
+        toast.success(msg);
+        try { (window as any).triggerVisualAlert?.({ message: 'Registro actualizado' }); } catch (_) {}
+        try { (window as any).speak?.('Registro actualizado correctamente'); } catch (_) {}
         fetchRecords();
         clearForm();
       }
@@ -313,9 +331,15 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
 
       if (error) {
         console.error("❌ Error al guardar:", error);
-        toast.error(`Error guardando dato: ${error.message}`);
+        const msg = `Error guardando dato: ${error.message}`;
+        toast.error(msg);
+        try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
+        try { (window as any).speak?.(msg); } catch (_) {}
       } else {
-        toast.success("✅ Registro guardado correctamente");
+        const msg = "✅ Registro guardado correctamente";
+        toast.success(msg);
+        try { (window as any).triggerVisualAlert?.({ message: 'Registro guardado' }); } catch (_) {}
+        try { (window as any).speak?.('Registro guardado correctamente'); } catch (_) {}
         // history record for local undo + analytics
         try {
           const historyKey = 'tabla_maestra_history';
@@ -345,6 +369,8 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                 if (!error) {
                   toast.dismiss(toastId);
                   toast.success('Deshecho');
+                  try { (window as any).triggerVisualAlert?.({ message: 'Deshecho' }); } catch (_) {}
+                  try { (window as any).speak?.('Deshecho'); } catch (_) {}
                   fetchRecords();
                 } else {
                   toast.error('Error deshaciendo: ' + error.message);
@@ -423,9 +449,15 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   const deleteRecord = async (id: number | undefined) => {
     if (!id) return;
     const { error } = await supabase.from("contenido").delete().eq("id", id);
-    if (error) toast.error(`Error al eliminar: ${error.message}`);
-    else {
+    if (error) {
+      const msg = `Error al eliminar: ${error.message}`;
+      toast.error(msg);
+      try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
+      try { (window as any).speak?.(msg); } catch (_) {}
+    } else {
       toast.success("🗑️ Dato eliminado correctamente");
+      try { (window as any).triggerVisualAlert?.({ message: 'Dato eliminado' }); } catch (_) {}
+      try { (window as any).speak?.('Registro eliminado correctamente'); } catch (_) {}
       fetchRecords();
     }
   };
@@ -635,9 +667,12 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                       <div className="h-full bg-blue-600" style={{ width: `${saveProgress}%` }} />
                     </div>
                   )}
-                  <button type="submit" className="w-full sm:w-auto px-3 py-3 sm:py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+                  <div className="flex gap-2 items-center">
+                    <button type="button" className="px-3 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { try { (window as any).speak?.(`${form.title}. ${form.description ?? ''}`); } catch (e) {}; toast.success('Reading...'); }}>{t('addcontent.read') || 'Read'}</button>
+                    <button type="submit" className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
                 {isEditing ? t("addcontent.form.update") : t("addcontent.form.save")}
-                  </button>
+                    </button>
+                  </div>
                 </div>
             </div>
           </form>

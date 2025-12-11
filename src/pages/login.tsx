@@ -164,17 +164,19 @@ export default function Login({ highContrast = false, textSizeLarge: _textSizeLa
         // throttle: block after X attempts
         const MAX_FAILED = 5;
         const LOCK_SECONDS = 30;
-        if (next >= MAX_FAILED) {
+          if (next >= MAX_FAILED) {
           const until = Date.now() + LOCK_SECONDS * 1000;
           setBlockedUntil(until);
           setBlockedTimer(LOCK_SECONDS);
           localStorage.setItem('loginBlockedUntil', String(until));
           setError(t('login.errors.blocked') || `Demasiados intentos. Intenta nuevamente en ${LOCK_SECONDS} segundos.`);
           toast.error(t('login.errors.blocked') || `Demasiados intentos. Intenta nuevamente en ${LOCK_SECONDS} segundos.`);
-        } else {
+          } else {
           const friendly = mapAuthError(signInError);
           setError(friendly);
           toast.error(friendly);
+          try { (window as any).triggerVisualAlert?.({ message: friendly }); } catch (_) {}
+          try { (window as any).speak?.(friendly); } catch (_) {}
         }
         setLoading(false);
         return;
@@ -194,7 +196,9 @@ export default function Login({ highContrast = false, textSizeLarge: _textSizeLa
       localStorage.removeItem('loginFailedAttempts');
       localStorage.removeItem('loginBlockedUntil');
       setBlockedUntil(0);
-      // redirect to home after successful login
+      // announce success and redirect to home after successful login
+      try { (window as any).triggerVisualAlert?.({ message: 'Inicio de sesión exitoso' }); } catch (_) {}
+      try { (window as any).speak?.('Inicio de sesión exitoso'); } catch (_) {}
       navigate('/');
     } catch (err: any) {
       // log the error and show toast

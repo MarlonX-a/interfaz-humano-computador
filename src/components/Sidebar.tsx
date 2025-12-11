@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from 'react-hot-toast';
 import HelpModal from "./HelpModal";
 import { useTranslation } from "react-i18next";
 import { useEffect } from "react";
@@ -29,6 +30,10 @@ interface SidebarProps {
   highContrast: boolean;
   setHighContrast: (val: boolean) => void;
   setSidebarOpen?: (val: boolean) => void; // opcional para overlay click
+  visualAlertsEnabled?: boolean;
+  voiceReadingEnabled?: boolean;
+  setVisualAlertsEnabled?: (val: boolean) => void;
+  setVoiceReadingEnabled?: (val: boolean) => void;
 }
 
 const Sidebar: FC<SidebarProps> = ({
@@ -38,6 +43,10 @@ const Sidebar: FC<SidebarProps> = ({
   highContrast,
   setHighContrast,
   setSidebarOpen,
+  visualAlertsEnabled = false,
+  voiceReadingEnabled = false,
+  setVisualAlertsEnabled = () => {},
+  setVoiceReadingEnabled = () => {},
 }) => {
   const { t } = useTranslation();
   const [openMenus, setOpenMenus] = useState<{ [key: string]: boolean }>({
@@ -373,25 +382,25 @@ const Sidebar: FC<SidebarProps> = ({
 
           {openMenus.aprende && (
             <div className="ml-6 mt-1 flex flex-col space-y-1">
-              <a href="#" className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition">
+              <button onClick={() => navigate('/molecules')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <Atom size={16} /> <span>{t("molecules")}</span>
-              </a>
-              <a href="#" className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition">
+              </button>
+              <button onClick={() => navigate('/atoms')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <FlaskRound size={16} /> <span>{t("atoms")}</span>
-              </a>
-              <a href="#" className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition">
+              </button>
+              <button onClick={() => navigate('/periodic-table')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <FlaskConical size={16} /> <span>{t("periodicTable")}</span>
-              </a>
-              <a href="#" className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition">
+              </button>
+              <button onClick={() => navigate('/chemical-reactions')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <FlaskConical size={16} /> <span>{t("chemicalReactions")}</span>
-              </a>
+              </button>
             </div>
           )}
 
           {/* Experimentos */}
-          <a href="#" className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition">
+          <button onClick={() => navigate('/experiments')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
             <FlaskConical size={16} /> <span>{t("experiments")}</span>
-          </a>
+          </button>
 
           {/* Accesibilidad */}
           <button
@@ -406,42 +415,73 @@ const Sidebar: FC<SidebarProps> = ({
 
           {openMenus.accesibilidad && (
             <div className="ml-6 mt-1 flex flex-col space-y-1">
-              <a
-                href="#"
-                className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition"
-                onClick={() => alert(t("visualAlertsEnabled"))}
-              >
-                <Eye size={16} /> <span>{t("visualAlerts")}</span>
-              </a>
+                <button aria-label={t('visualAlerts') || 'Visual Alerts'} title={t('visualAlerts') || 'Visual Alerts'} aria-pressed={visualAlertsEnabled} onClick={() => {
+                  const newVal = !visualAlertsEnabled;
+                  setVisualAlertsEnabled(newVal);
+                  try { localStorage.setItem('visualAlertsEnabled', JSON.stringify(newVal)); } catch(e) {}
+                  // show a quick visual alert (if global trigger is available)
+                  try { (window as any).triggerVisualAlert?.(t('accessibility.visualAlertsToggled') || (newVal ? 'Visual alerts enabled' : 'Visual alerts disabled')); } catch(e) {}
+                  const toastMsg = newVal ? (t('accessibility.visualAlertsEnabled') || 'Visual alerts enabled') : (t('accessibility.visualAlertsDisabled') || 'Visual alerts disabled');
+                  try { toast.success(toastMsg); } catch (e) {}
+                }} className="flex items-center justify-between w-full p-2 rounded hover:bg-blue-800 transition text-left">
+                  <div className="flex items-center space-x-2"><Eye size={16} /> <span>{t("visualAlerts")}</span></div>
+                  <div className={`w-2 h-2 rounded-full ${visualAlertsEnabled ? 'bg-emerald-400' : 'bg-gray-500'}`} aria-hidden />
+                </button>
 
-              <a
-                href="#"
-                className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition"
-                onClick={() => alert(t("voiceReadingEnabled"))}
-              >
-                <Volume2 size={16} /> <span>{t("voiceReading")}</span>
-              </a>
-
-              <button
-                onClick={() => setTextSizeLarge(!textSizeLarge)}
-                className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
-              >
-                <Type size={16} /> <span>{t("textSize")}</span>
+                  <button aria-label={t('voiceReading') || 'Voice Reading'} title={t('voiceReading') || 'Voice Reading'} aria-pressed={voiceReadingEnabled} onClick={() => {
+                  const newVal = !voiceReadingEnabled;
+                  setVoiceReadingEnabled(newVal);
+                  try { localStorage.setItem('voiceReadingEnabled', JSON.stringify(newVal)); } catch(e) {}
+                  // speak a short notification if enabled
+                  try { (window as any).speak?.(t('accessibility.voiceReadingToggled') || (newVal ? 'Voice reading enabled' : 'Voice reading disabled')); } catch(e) {}
+                    const toastMsg2 = newVal ? (t('accessibility.voiceReadingEnabled') || 'Voice reading enabled') : (t('accessibility.voiceReadingDisabled') || 'Voice reading disabled');
+                    try { toast.success(toastMsg2); } catch (e) {}
+                }} className="flex items-center justify-between w-full p-2 rounded hover:bg-blue-800 transition text-left">
+                <div className="flex items-center space-x-2"><Volume2 size={16} /> <span>{t("voiceReading")}</span></div>
+                <div className={`w-2 h-2 rounded-full ${voiceReadingEnabled ? 'bg-emerald-400' : 'bg-gray-500'}`} aria-hidden />
               </button>
 
               <button
-                onClick={() => setHighContrast(!highContrast)}
+                onClick={() => {
+                  const v = !textSizeLarge;
+                  setTextSizeLarge(v);
+                  try { localStorage.setItem('textSizeLarge', JSON.stringify(v)); } catch (e) {}
+                  // visual alert or speech when toggled
+                  try { (window as any).triggerVisualAlert?.(t('accessibility.textSizeToggled') || (v ? 'Large text enabled' : 'Large text disabled')); } catch(e) {}
+                  try { (window as any).speak?.(t('accessibility.textSizeToggled') || (v ? 'Large text enabled' : 'Large text disabled')); } catch(e) {}
+                  const toastMsg3 = v ? (t('accessibility.textSizeEnabled') || 'Large text enabled') : (t('accessibility.textSizeDisabled') || 'Large text disabled');
+                  try { toast.success(toastMsg3); } catch (e) {}
+                }}
+                aria-pressed={textSizeLarge}
+                className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+              >
+                <Type size={16} /> <span>{t("textSize")}</span>
+                <div className={`w-2 h-2 rounded-full ${textSizeLarge ? 'bg-emerald-400' : 'bg-gray-500'}`} aria-hidden />
+              </button>
+
+              <button
+                onClick={() => {
+                  const v = !highContrast;
+                  setHighContrast(v);
+                  try { localStorage.setItem('highContrast', JSON.stringify(v)); } catch (e) {}
+                  try { (window as any).triggerVisualAlert?.(t('accessibility.highContrastToggled') || (v ? 'High contrast enabled' : 'High contrast disabled')); } catch(e) {}
+                  try { (window as any).speak?.(t('accessibility.highContrastToggled') || (v ? 'High contrast enabled' : 'High contrast disabled')); } catch(e) {}
+                  const toastMsg4 = v ? (t('accessibility.highContrastEnabled') || 'High contrast enabled') : (t('accessibility.highContrastDisabled') || 'High contrast disabled');
+                  try { toast.success(toastMsg4); } catch (e) {}
+                }}
+                aria-pressed={highContrast}
                 className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
               >
                 <Contrast size={16} /> <span>{t("highContrast")}</span>
+                <div className={`w-2 h-2 rounded-full ${highContrast ? 'bg-emerald-400' : 'bg-gray-500'}`} aria-hidden />
               </button>
             </div>
           )}
 
           {/* Configuración */}
-          <a href="#" className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition">
+          <button onClick={() => navigate('/settings')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
             <Settings size={18} /> <span>{t("settings")}</span>
-          </a>
+          </button>
 
           {/* Historial */}
           <a onClick={() => navigate('/history')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition cursor-pointer">

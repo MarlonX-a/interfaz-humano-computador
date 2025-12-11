@@ -71,7 +71,10 @@ export default function ResetPassword({ highContrast = false, textSizeLarge = fa
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
-      toast.success(t("resetPassword.success") || "Contraseña actualizada.");
+      const msg = t("resetPassword.success") || "Contraseña actualizada.";
+      toast.success(msg);
+      try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
+      try { (window as any).speak?.(msg); } catch (_) {}
 
       // Force logout after update
       try {
@@ -82,6 +85,8 @@ export default function ResetPassword({ highContrast = false, textSizeLarge = fa
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
+      try { (window as any).triggerVisualAlert?.({ message: err.message }); } catch (_) {}
+      try { (window as any).speak?.(err.message); } catch (_) {}
     } finally {
       setLoading(false);
     }
@@ -100,10 +105,15 @@ export default function ResetPassword({ highContrast = false, textSizeLarge = fa
       const { error } = await supabase.auth.resetPasswordForEmail(emailForResend, { redirectTo });
       if (error) throw error;
 
-      toast.success(t("resetPassword.resendSuccess") || "Correo enviado.");
+      const msg2 = t("resetPassword.resendSuccess") || "Correo enviado.";
+      toast.success(msg2);
+      try { (window as any).triggerVisualAlert?.({ message: msg2 }); } catch (_) {}
+      try { (window as any).speak?.(msg2); } catch (_) {}
     } catch (err: any) {
       setError(err.message);
       toast.error(err.message);
+      try { (window as any).triggerVisualAlert?.({ message: err.message }); } catch (_) {}
+      try { (window as any).speak?.(err.message); } catch (_) {}
     } finally {
       setLoading(false);
     }
