@@ -14,6 +14,19 @@ interface TakePruebaModalProps {
   leccionId: number;
 }
 
+// Format seconds into H:MM:SS or MM:SS
+const formatTime = (seconds: number | null) => {
+  if (seconds === null || isNaN(seconds as any)) return "0:00";
+  let s = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(s / 3600);
+  s = s % 3600;
+  const minutes = Math.floor(s / 60);
+  const secs = s % 60;
+  const mm = minutes.toString().padStart(2, '0');
+  const ss = secs.toString().padStart(2, '0');
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${minutes}:${ss}`;
+};
+
 export default function TakePruebaModal({
   open,
   onClose,
@@ -24,6 +37,8 @@ export default function TakePruebaModal({
   const [loading, setLoading] = useState(false);
   const [prueba, setPrueba] = useState<PruebaCompleta | null>(null);
   const [respuestas, setRespuestas] = useState<Record<number, number>>({});
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [reviewMode, setReviewMode] = useState(false);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -77,6 +92,12 @@ export default function TakePruebaModal({
         onClose();
         return;
       }
+      // Si no tiene preguntas, no podemos mostrar la prueba
+      if (!data.preguntas || data.preguntas.length === 0) {
+        toast.error(t('teacher.pruebas.noQuestions') || 'Esta prueba no tiene preguntas');
+        onClose();
+        return;
+      }
       setPrueba(data);
       setStartedAt(new Date());
       setRespuestas({});
@@ -93,20 +114,22 @@ export default function TakePruebaModal({
       setLoading(false);
     }
   };
+  // Keyboard navigation: ArrowLeft -> previous, ArrowRight -> next
+  useEffect(() => {
+    if (!open || submitted) return;
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+    const handler = (e: KeyboardEvent) => {
+      if (reviewMode) return; // don't interfere while reviewing
+      if (e.key === 'ArrowLeft') {
+        setCurrentIndex((i) => Math.max(0, i - 1));
+      } else if (e.key === 'ArrowRight') {
+        setCurrentIndex((i) => (prueba ? Math.min(prueba.preguntas.length - 1, i + 1) : i + 1));
+      }
+    };
 
-  const handleAnswerChange = (preguntaId: number, respuestaId: number) => {
-    if (submitted) return;
-    setRespuestas((prev) => ({
-      ...prev,
-      [preguntaId]: respuestaId,
-    }));
-  };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, submitted, reviewMode, prueba]);
 
   const calculateScore = () => {
     if (!prueba) return { correctas: 0, total: 0, porcentaje: 0 };
@@ -128,19 +151,23 @@ export default function TakePruebaModal({
     return { correctas, total, porcentaje };
   };
 
+  const handleAnswerChange = (preguntaId: number, respuestaId: number) => {
+    setRespuestas((prev) => ({ ...prev, [preguntaId]: respuestaId }));
+  };
+
+  const allAnswered = () => {
+    if (!prueba) return false;
+    return prueba.preguntas.every((p) => respuestas[p.id] !== undefined && respuestas[p.id] !== null);
+  };
+
   const handleSubmit = async (autoSubmit = false) => {
     if (submitted) return;
 
     if (!autoSubmit) {
-      // Validar que todas las preguntas tengan respuesta
       if (!prueba) return;
-      const todasRespondidas = prueba.preguntas.every((p) => respuestas[p.id] !== undefined);
-      if (!todasRespondidas) {
-        const confirmar = window.confirm(
-          t('teacher.pruebas.confirmSubmitIncomplete') || 
-          'No has respondido todas las preguntas. ¿Deseas enviar de todas formas?'
-        );
-        if (!confirmar) return;
+      if (!allAnswered()) {
+        toast.error(t('teacher.pruebas.mustAnswerAll') || 'Debes responder todas las preguntas antes de enviar');
+        return;
       }
     }
 
@@ -371,48 +398,128 @@ export default function TakePruebaModal({
                 </div>
               )}
 
-              <div className="space-y-6">
-                {prueba.preguntas.map((pregunta, index) => (
-                  <div key={pregunta.id} className="border border-gray-300 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      {index + 1}. {pregunta.texto}
-                    </h4>
-                    <div className="space-y-2">
-                      {pregunta.respuestas.map((respuesta) => {
-                        const isSelected = respuestas[pregunta.id] === respuesta.id;
-                        return (
-                          <label
-                            key={respuesta.id}
-                            className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                              isSelected
-                                ? 'bg-blue-50 border-blue-500'
-                                : 'bg-white border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name={`pregunta-${pregunta.id}`}
-                              checked={isSelected}
-                              onChange={() => handleAnswerChange(pregunta.id, respuesta.id)}
-                              className="w-4 h-4 text-blue-600"
-                            />
-                            <span className="flex-1 text-gray-900">{respuesta.texto}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+              {/* Indicador de progreso y revisión */}
+              <div className="mb-4 flex items-center justify-between">
+                <div className="text-sm text-gray-600">{prueba.preguntas.length} {t('teacher.pruebas.questions') || 'preguntas'}</div>
+                <div className="flex items-center gap-3">
+                  <div className="text-sm font-medium">{t('teacher.pruebas.progress') || 'Pregunta'} {currentIndex + 1} {t('teacher.pruebas.of') || 'de'} {prueba.preguntas.length}</div>
+                  <button onClick={() => setReviewMode(true)} className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded text-sm">
+                    {t('teacher.pruebas.review') || 'Revisar'}
+                  </button>
+                </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t">
-                <button
-                  onClick={() => handleSubmit(false)}
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-                >
-                  {t('teacher.pruebas.submit') || 'Enviar Prueba'}
-                </button>
+              {/* Mostrar una pregunta a la vez */}
+              <div className="space-y-6">
+                {(() => {
+                  const pregunta = prueba.preguntas && prueba.preguntas[currentIndex] ? prueba.preguntas[currentIndex] : null;
+                  if (!pregunta) {
+                    return (
+                      <div className="text-center py-8 text-gray-600">{t('teacher.pruebas.noQuestionSelected') || 'Pregunta no disponible'}</div>
+                    );
+                  }
+                  return (
+                    <div key={pregunta.id} className="border border-gray-300 rounded-lg p-4">
+                      <h4 className="font-semibold text-gray-900 mb-3">{currentIndex + 1}. {pregunta.texto}</h4>
+                      <div className="space-y-2">
+                        {pregunta.respuestas.map((respuesta) => {
+                          const isSelected = respuestas[pregunta.id] === respuesta.id;
+                          return (
+                            <label
+                              key={respuesta.id}
+                              className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                                isSelected ? 'bg-blue-50 border-blue-500' : 'bg-white border-gray-300 hover:bg-gray-50'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`pregunta-${pregunta.id}`}
+                                checked={isSelected}
+                                onChange={() => handleAnswerChange(pregunta.id, respuesta.id)}
+                                className="w-4 h-4 text-blue-600"
+                              />
+                              <span className="flex-1 text-gray-900">{respuesta.texto}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
+
+              <div className="flex justify-between items-center pt-4 border-t">
+                <div>
+                  {currentIndex > 0 && (
+                    <button onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} className="px-4 py-2 bg-gray-200 rounded mr-2">
+                      {t('teacher.pruebas.previous') || 'Anterior'}
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {currentIndex < prueba.preguntas.length - 1 ? (
+                    <button
+                      onClick={() => {
+                        const pregunta = prueba.preguntas[currentIndex];
+                        if (respuestas[pregunta.id] === undefined) {
+                          toast.error(t('teacher.pruebas.answerCurrent') || 'Responde la pregunta antes de continuar');
+                          return;
+                        }
+                        setCurrentIndex((i) => Math.min(prueba.preguntas.length - 1, i + 1));
+                      }}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                    >
+                      {t('teacher.pruebas.next') || 'Siguiente'}
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setReviewMode(true)}
+                        disabled={!allAnswered()}
+                        className={`px-6 py-3 rounded-lg font-medium ${allAnswered() ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-gray-200 text-gray-600 cursor-not-allowed'}`}
+                      >
+                        {t('teacher.pruebas.reviewBeforeSubmit') || 'Revisar antes de enviar'}
+                      </button>
+                      <button
+                        onClick={() => handleSubmit(false)}
+                        disabled={!allAnswered()}
+                        className={`px-6 py-3 rounded-lg font-medium ${allAnswered() ? 'bg-green-600 text-white hover:bg-green-700' : 'hidden'}`}
+                      >
+                        {t('teacher.pruebas.finish') || 'Finalizar evaluación'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Review panel (small) */}
+              {reviewMode && (
+                <div className="mt-4 border-t pt-4">
+                  <h5 className="font-semibold mb-2">{t('teacher.pruebas.reviewTitle') || 'Revisión de la evaluación'}</h5>
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-auto mb-4">
+                    {prueba.preguntas.map((p, idx) => {
+                      const answered = respuestas[p.id] !== undefined;
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            setCurrentIndex(idx);
+                            setReviewMode(false);
+                          }}
+                          className={`p-2 rounded border text-left text-sm ${answered ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}
+                        >
+                          <div className="font-medium">{idx + 1}. {p.texto.slice(0, 60)}</div>
+                          <div className="text-xs mt-1">{answered ? (t('teacher.pruebas.answered') || 'Respondida') : (t('teacher.pruebas.unanswered') || 'Sin responder')}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setReviewMode(false)} className="px-4 py-2 bg-gray-200 rounded">{t('teacher.pruebas.cancel') || 'Cancelar'}</button>
+                    <button onClick={() => { setReviewMode(false); handleSubmit(false); }} className="px-4 py-2 bg-green-600 text-white rounded">{t('teacher.pruebas.submitConfirm') || 'Enviar ahora'}</button>
+                  </div>
+                </div>
+              )}
             </>
           ) : null}
         </div>

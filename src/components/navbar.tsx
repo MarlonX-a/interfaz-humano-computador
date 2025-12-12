@@ -486,6 +486,8 @@ export default function Navbar({ toggleSidebar, sidebarOpen, highContrast }: { t
                 </button>
               )}
 
+              
+
               <button
                 className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${highContrast ? "bg-yellow-300 text-black hover:bg-yellow-400" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                 onClick={handleSignOut}

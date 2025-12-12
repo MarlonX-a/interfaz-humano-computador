@@ -557,6 +557,15 @@ const Sidebar: FC<SidebarProps> = ({
               <LayoutDashboard size={16} /> <span>{t('admin.dashboard.title') || 'Dashboard General'}</span>
             </button>
           )}
+          {/* Student dashboard - visible solo para estudiantes */}
+          {profile && profile.role === "student" && (
+            <button
+              onClick={() => navigate('/student/dashboard')}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+            >
+              <LayoutDashboard size={16} /> <span>{t('nav.dashboard', { defaultValue: 'Dashboard' })}</span>
+            </button>
+          )}
           {/* Gestión de Usuarios - solo admin */}
           {profile && profile.role === "admin" && (
             <button
