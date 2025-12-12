@@ -1,23 +1,29 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
-import { X, Upload, FileUp, Sparkles } from "lucide-react";
+import { X, Upload, FileUp, Sparkles, Plus, Edit, Trash2, BookOpen } from "lucide-react";
 import toast from "react-hot-toast";
-import { createLeccion } from "../lib/data/lecciones";
+import { createLeccion, updateLeccion } from "../lib/data/lecciones";
 import { supabase } from "../lib/supabaseClient";
-import type { LeccionInsert, ModeloRA } from "../types/db";
+import type { LeccionInsert, ModeloRA, Leccion, Prueba } from "../types/db";
 import { createModeloRA, updateModeloRA } from "../lib/data/modelos";
+import { listPruebasByLeccion, deletePrueba } from "../lib/data/pruebas";
 import QuickModelModal from "./QuickModelModal";
+import EditPruebaModal from "./EditPruebaModal";
 
 export default function CreateLessonModal({
   open,
   onClose,
   onCreated,
   parentLeccionId,
+  leccion,
+  onUpdated,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: (newId: number) => void;
   parentLeccionId?: number | null;
+  leccion?: Leccion | null;
+  onUpdated?: (id: number) => void;
 }) {
   const { t } = useTranslation();
   const [titulo, setTitulo] = useState("");
@@ -35,6 +41,12 @@ export default function CreateLessonModal({
   const [pendingQuickModel, setPendingQuickModel] = useState<ModeloRA | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  
+  // Estado para pruebas
+  const [pruebas, setPruebas] = useState<Prueba[]>([]);
+  const [loadingPruebas, setLoadingPruebas] = useState(false);
+  const [editingPruebaId, setEditingPruebaId] = useState<number | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Simple inline component to show a preview using model-viewer if available
   const ModelPreview = ({ src, alt } : { src: string; alt?: string }) => {
@@ -80,15 +92,59 @@ export default function CreateLessonModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // Cargar userId al montar
   useEffect(() => {
-    console.debug('[CreateLessonModal] open=', open);
+    const loadUserId = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const uid = (sessionData as any)?.session?.user?.id;
+      setUserId(uid || null);
+    };
+    loadUserId();
+  }, []);
+
+  // Cargar pruebas cuando se abre el modal y hay una lección
+  useEffect(() => {
+    const loadPruebas = async () => {
+      if (open && leccion?.id) {
+        setLoadingPruebas(true);
+        try {
+          const pruebasData = await listPruebasByLeccion(leccion.id);
+          setPruebas(pruebasData);
+        } catch (error: any) {
+          console.error('Error loading pruebas:', error);
+          toast.error(error?.message || 'Error al cargar pruebas');
+        } finally {
+          setLoadingPruebas(false);
+        }
+      } else {
+        setPruebas([]);
+      }
+    };
+    loadPruebas();
+  }, [open, leccion]);
+
+  useEffect(() => {
+    console.debug('[CreateLessonModal] open=', open, 'leccion=', leccion);
     if (!open) {
       setUploadedModelUrl(null);
       setUploadProgress(0);
       setUploading(false);
       setPendingQuickModel(null);
+      setTitulo("");
+      setDescripcion("");
+      setNivel("");
+      setThumbnailUrl("");
+      setPruebas([]);
+      setEditingPruebaId(null);
     }
-  }, [open]);
+    // If we are opening in edit mode, prefill fields
+    if (open && leccion) {
+      setTitulo(leccion.titulo || "");
+      setDescripcion(leccion.descripcion || "");
+      setNivel(leccion.nivel || "");
+      setThumbnailUrl(leccion.thumbnail_url || "");
+    }
+  }, [open, leccion]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,18 +163,27 @@ export default function CreateLessonModal({
         thumbnail_url: thumbnail_url || null,
         created_by: userId || null,
       };
-      const created = await createLeccion(payload);
-      toast.success(t('createLesson.success.created'));
-      onCreated(created.id);
+      let targetLeccionId: number | undefined;
+      if (leccion && leccion.id) {
+        const updated = await updateLeccion(leccion.id, payload as any);
+        targetLeccionId = updated.id;
+        toast.success(t('createLesson.success.updated') || t('createLesson.success.created'));
+        if (onUpdated) onUpdated(updated.id);
+      } else {
+        const created = await createLeccion(payload);
+        targetLeccionId = created.id;
+        toast.success(t('createLesson.success.created'));
+        onCreated(created.id);
+      }
       // If we have a pending quick created model, link it to the leccion
       if (pendingQuickModel) {
         try {
           const { data: sessionData } = await supabase.auth.getSession();
           const userId = (sessionData as any)?.session?.user?.id;
-          if (!userId) {
+            if (!userId) {
             toast.error(t('createLesson.errors.notAuthenticatedToLinkModel'));
-          } else {
-            await updateModeloRA(pendingQuickModel.id ?? pendingQuickModel, { leccion_id: created.id });
+          } else if (targetLeccionId) {
+            await updateModeloRA(pendingQuickModel.id ?? pendingQuickModel, { leccion_id: targetLeccionId });
           }
         } catch (err: any) {
           console.warn('Error linking quick model', err);
@@ -143,7 +208,7 @@ export default function CreateLessonModal({
             setUploadProgress(0);
             const filename = `${Date.now()}_${modelFile.name}`;
             const bucket = 'modelos-ra';
-            const path = `lecciones/${created.id}/${filename}`;
+            const path = `lecciones/${targetLeccionId}/${filename}`;
             // Upload file to Supabase Storage using XHR so we can track progress
             const uploadFileWithProgress = async (file: File, bucketName: string, objectPath: string) => {
               return new Promise<void>(async (resolve, reject) => {
@@ -189,7 +254,7 @@ export default function CreateLessonModal({
               const userId = (sessionData as any)?.session?.user?.id;
               // Create model row
               const modelPayload = {
-                leccion_id: created.id,
+                leccion_id: targetLeccionId,
                 nombre_modelo: modelName || modelFile.name,
                 archivo_url,
                 tipo: modelType || null,
@@ -228,6 +293,15 @@ export default function CreateLessonModal({
           }
         }
       }
+      // Recargar pruebas después de guardar
+      if (targetLeccionId) {
+        try {
+          const pruebasData = await listPruebasByLeccion(targetLeccionId);
+          setPruebas(pruebasData);
+        } catch (err) {
+          console.warn('Error reloading pruebas:', err);
+        }
+      }
       // limpiar y cerrar
       setTitulo("");
       setDescripcion("");
@@ -251,6 +325,54 @@ export default function CreateLessonModal({
       }, 50);
     }
   }, [open]);
+
+  // Funciones para gestionar pruebas
+  const handleCreatePrueba = () => {
+    if (!leccion?.id) {
+      toast.error(t('teacher.pruebas.saveLessonFirst') || 'Debes guardar la lección primero');
+      return;
+    }
+    setEditingPruebaId(0); // 0 = nueva prueba
+  };
+
+  const handleEditPrueba = (pruebaId: number) => {
+    setEditingPruebaId(pruebaId);
+  };
+
+  const handleDeletePrueba = async (pruebaId: number) => {
+    if (!confirm(t('teacher.pruebas.confirmDelete') || '¿Estás seguro de eliminar esta prueba?')) {
+      return;
+    }
+    try {
+      await deletePrueba(pruebaId);
+      toast.success(t('teacher.pruebas.deleted') || 'Prueba eliminada');
+      // Recargar pruebas
+      if (leccion?.id) {
+        const pruebasData = await listPruebasByLeccion(leccion.id);
+        setPruebas(pruebasData);
+      }
+    } catch (error: any) {
+      console.error('Error deleting prueba:', error);
+      toast.error(error?.message || 'Error al eliminar prueba');
+    }
+  };
+
+  const handlePruebaUpdated = async () => {
+    // Recargar pruebas después de crear/actualizar
+    if (leccion?.id) {
+      try {
+        const pruebasData = await listPruebasByLeccion(leccion.id);
+        setPruebas(pruebasData);
+      } catch (error: any) {
+        console.error('Error reloading pruebas:', error);
+      }
+    }
+    setEditingPruebaId(null);
+  };
+
+  const handlePruebaModalClose = () => {
+    setEditingPruebaId(null);
+  };
 
   if (!open) return null;
 
@@ -467,6 +589,83 @@ export default function CreateLessonModal({
               </div>
             </div>
 
+            {/* Sección de Pruebas */}
+            <div className="border-t pt-4 mt-4">
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-gray-700">
+                  <BookOpen size={16} className="inline mr-2" />
+                  {t('teacher.pruebas.title') || 'Pruebas asociadas'}
+                </label>
+                {leccion?.id && (
+                  <button
+                    type="button"
+                    onClick={handleCreatePrueba}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus size={16} />
+                    {t('teacher.pruebas.newPrueba') || 'Nueva Prueba'}
+                  </button>
+                )}
+              </div>
+
+              {!leccion?.id ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+                  {t('teacher.pruebas.saveLessonFirst') || 'Guarda la lección primero para poder crear pruebas asociadas'}
+                </div>
+              ) : loadingPruebas ? (
+                <div className="text-center py-4 text-gray-500">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                  {t('loading') || 'Cargando...'}
+                </div>
+              ) : pruebas.length === 0 ? (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-500">
+                  {t('teacher.pruebas.noPruebas') || 'No hay pruebas asociadas a esta lección'}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {pruebas.map((prueba) => (
+                    <div
+                      key={prueba.id}
+                      className="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{prueba.titulo}</div>
+                        {prueba.descripcion && (
+                          <div className="text-sm text-gray-500 mt-1">{prueba.descripcion}</div>
+                        )}
+                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                          {prueba.tiempo_limite && (
+                            <span>{t('teacher.pruebas.timeLimit') || 'Tiempo límite'}: {prueba.tiempo_limite} min</span>
+                          )}
+                          <span className={`px-2 py-0.5 rounded ${prueba.activa ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {prueba.activa ? (t('teacher.pruebas.active') || 'Activa') : (t('teacher.pruebas.inactive') || 'Inactiva')}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          type="button"
+                          onClick={() => handleEditPrueba(prueba.id)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title={t('teacher.pruebas.edit') || 'Editar'}
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeletePrueba(prueba.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title={t('teacher.pruebas.delete') || 'Eliminar'}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Botones de acción */}
             <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
               <button 
@@ -485,10 +684,10 @@ export default function CreateLessonModal({
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    {t('createLesson.buttons.creating')}
+                    {t(leccion ? 'createLesson.buttons.updating' : 'createLesson.buttons.creating')}
                   </span>
                 ) : (
-                  t('createLesson.buttons.create')
+                  t(leccion ? 'createLesson.buttons.update' : 'createLesson.buttons.create')
                 )}
               </button>
             </div>
@@ -505,6 +704,16 @@ export default function CreateLessonModal({
           setShowQuickModelModal(false);
         }} 
       />
+      {editingPruebaId !== null && userId && (
+        <EditPruebaModal
+          open={editingPruebaId !== null}
+          onClose={handlePruebaModalClose}
+          pruebaId={editingPruebaId === 0 ? null : editingPruebaId}
+          onUpdated={handlePruebaUpdated}
+          userId={userId}
+          defaultLeccionId={leccion?.id || null}
+        />
+      )}
     </>
   );
 }

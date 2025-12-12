@@ -14,6 +14,7 @@ import {
   Contrast,
   Plus,
   X,
+  LayoutDashboard,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-hot-toast';
@@ -506,6 +507,63 @@ const Sidebar: FC<SidebarProps> = ({
               className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
             >
               <Plus size={16} /> <span>{t("addContent")}</span>
+            </button>
+          )}
+          {/* Mis contenidos / Todos los contenidos - teacher and admin */}
+          {profile && (profile.role === "teacher" || profile.role === "admin") && (
+            <button
+              onClick={() => navigate("/teacher/contents")}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+            >
+              <BookOpenText size={16} /> <span>
+                {profile.role === 'admin' 
+                  ? (t('teacher.contents.titleAll') || 'Todos los Contenidos')
+                  : (t('teacher.myContents') || 'Mis contenidos')}
+              </span>
+            </button>
+          )}
+          {/* Pruebas - teacher and admin */}
+          {profile && (profile.role === "teacher" || profile.role === "admin") && (
+            <button
+              onClick={() => navigate("/teacher/pruebas")}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+            >
+              <BookOpenText size={16} /> <span>
+                {profile.role === 'admin'
+                  ? (t('teacher.pruebas.titleAll') || 'Todas las Pruebas')
+                  : (t('teacher.pruebas.title') || 'Pruebas')}
+              </span>
+            </button>
+          )}
+          {/* Panel de Desempeño - teacher and admin */}
+          {profile && (profile.role === "teacher" || profile.role === "admin") && (
+            <button
+              onClick={() => navigate("/teacher/performance")}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+            >
+              <BookOpenText size={16} /> <span>
+                {profile.role === 'admin'
+                  ? (t('teacher.performance.titleAll') || 'Panel de Desempeño - Todos')
+                  : (t('teacher.performance.title') || 'Panel de Desempeño')}
+              </span>
+            </button>
+          )}
+          {/* Dashboard - solo admin */}
+          {profile && profile.role === "admin" && (
+            <button
+              onClick={() => navigate("/admin/dashboard")}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+            >
+              <LayoutDashboard size={16} /> <span>{t('admin.dashboard.title') || 'Dashboard General'}</span>
+            </button>
+          )}
+          {/* Gestión de Usuarios - solo admin */}
+          {profile && profile.role === "admin" && (
+            <button
+              onClick={() => navigate("/admin/users")}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+            >
+              <PersonStanding size={16} /> <span>{t('admin.users.title') || 'Gestión de Usuarios'}</span>
             </button>
           )}
         </nav>

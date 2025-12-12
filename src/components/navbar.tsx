@@ -476,8 +476,8 @@ export default function Navbar({ toggleSidebar, sidebarOpen, highContrast }: { t
                 {displayName || session.user.email}
               </button>
 
-              {/* Only teachers see 'Add Content' */}
-              {isTeacher && (
+              {/* Teachers and admins see 'Add Content' */}
+              {(isTeacher || isAdmin) && (
                 <button
                   className={`hidden sm:inline-flex px-4 py-1.5 text-sm font-medium rounded-md ${highContrast ? "bg-yellow-300 text-black hover:bg-yellow-400" : "bg-green-600 hover:bg-green-700 text-white"}`}
                   onClick={() => navigate('/add-content')}

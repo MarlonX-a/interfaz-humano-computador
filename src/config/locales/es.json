@@ -367,6 +367,186 @@
       }
     }
   },
+  "teacher": {
+    "myContents": "Mis contenidos",
+    "newContent": "Nuevo contenido",
+    "edit": "Editar",
+    "newLesson": "Nueva lección",
+    "lessons": "Lecciones",
+    "contents": {
+      "title": "Mis Contenidos",
+      "titleAll": "Todos los Contenidos",
+      "viewingAll": "Vista de administrador: viendo todos los contenidos del sistema",
+      "description": "Gestiona todos tus contenidos y lecciones",
+      "searchPlaceholder": "Buscar contenidos...",
+      "noContents": "No tienes contenidos aún",
+      "noResults": "No se encontraron resultados",
+      "tryDifferentSearch": "Intenta con otros términos de búsqueda",
+      "createFirst": "Crea tu primer contenido para comenzar",
+      "loadError": "Error al cargar contenido",
+      "deleteSuccess": "Contenido eliminado correctamente",
+      "deleteError": "Error al eliminar contenido",
+      "confirmDelete": "¿Estás seguro de que deseas eliminar este contenido?",
+      "editContent": "Editar Contenido",
+      "editContentDescription": "Modifica los campos del contenido",
+      "order": "Orden",
+      "addTag": "Escribe y presiona Enter para agregar",
+      "lessons": "Lecciones",
+      "noLessonsAvailable": "No hay lecciones disponibles",
+      "moreLessons": "lecciones más"
+    },
+    "pruebas": {
+      "title": "Pruebas",
+      "titleAll": "Todas las Pruebas",
+      "description": "Crea y gestiona pruebas para tus lecciones",
+      "descriptionAll": "Vista de administrador: todas las pruebas del sistema",
+      "newPrueba": "Nueva Prueba",
+      "searchPlaceholder": "Buscar pruebas...",
+      "noPruebas": "No tienes pruebas aún",
+      "noResults": "No se encontraron resultados",
+      "tryDifferentSearch": "Intenta con otros términos de búsqueda",
+      "createFirst": "Crea tu primera prueba para comenzar",
+      "loadError": "Error al cargar prueba",
+      "deleteSuccess": "Prueba eliminada correctamente",
+      "deleteError": "Error al eliminar prueba",
+      "confirmDelete": "¿Estás seguro de que deseas eliminar esta prueba?",
+      "editPrueba": "Editar Prueba",
+      "saveSuccess": "Prueba guardada correctamente",
+      "saveError": "Error al guardar prueba",
+      "saving": "Guardando...",
+      "save": "Guardar",
+      "titulo": "Título",
+      "descripcion": "Descripción",
+      "leccion": "Lección",
+      "selectLeccion": "Selecciona una lección",
+      "orden": "Orden",
+      "tiempoLimite": "Tiempo límite (minutos)",
+      "tiempoLimitePlaceholder": "Opcional",
+      "puntajeMinimo": "Puntaje mínimo (%)",
+      "activa": "Prueba activa",
+      "preguntas": "Preguntas",
+      "addPregunta": "Agregar Pregunta",
+      "noPreguntas": "No hay preguntas. Agrega al menos una.",
+      "pregunta": "Pregunta",
+      "preguntaTexto": "Texto de la pregunta",
+      "tipoPregunta": "Tipo",
+      "opcionMultiple": "Opción múltiple",
+      "verdaderoFalso": "Verdadero/Falso",
+      "respuestas": "Respuestas",
+      "addRespuesta": "Agregar",
+      "respuestaPlaceholder": "Texto de la respuesta",
+      "validation": {
+        "titleRequired": "El título es requerido",
+        "leccionRequired": "Selecciona una lección",
+        "preguntasRequired": "Agrega al menos una pregunta",
+        "preguntaTextRequired": "La pregunta {{num}} debe tener texto",
+        "minRespuestas": "La pregunta {{num}} debe tener al menos 2 respuestas",
+        "correctaRequired": "La pregunta {{num}} debe tener al menos una respuesta correcta",
+        "respuestaTextRequired": "La respuesta {{resp}} de la pregunta {{num}} debe tener texto"
+      },
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "takingPrueba": "Tomando Prueba",
+      "results": "Resultados de la Prueba",
+      "approved": "¡Aprobado!",
+      "notApproved": "No Aprobado",
+      "scoreDetails": "{{correctas}} de {{total}} preguntas correctas",
+      "minimumRequired": "Puntaje mínimo requerido: {{min}}%",
+      "timeSpent": "Tiempo empleado: {{minutes}}:{{seconds}}",
+      "review": "Revisión de Respuestas",
+      "yourAnswer": "Tu respuesta",
+      "noAnswer": "Sin respuesta",
+      "correctAnswer": "Respuesta correcta",
+      "submit": "Enviar Prueba",
+      "confirmSubmitIncomplete": "No has respondido todas las preguntas. ¿Deseas enviar de todas formas?",
+      "saveResultError": "Error al guardar resultado",
+      "notActive": "Esta prueba no está activa",
+      "saveLessonFirst": "Debes guardar la lección primero",
+      "leccionPreselected": "Lección pre-seleccionada desde la edición de lección",
+      "timeLimit": "Tiempo límite",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "deleted": "Prueba eliminada"
+    },
+    "performance": {
+      "title": "Panel de Desempeño del Estudiante",
+      "titleAll": "Panel de Desempeño - Todos los Estudiantes",
+      "description": "Analiza el desempeño de los estudiantes en tus lecciones y pruebas",
+      "descriptionAll": "Vista de administrador: analiza el desempeño de todos los estudiantes del sistema",
+      "loadError": "Error al cargar datos de desempeño",
+      "noData": "No hay datos para mostrar",
+      "noStudents": "No hay estudiantes",
+      "noStudentsFound": "No se encontraron estudiantes",
+      "searchStudents": "Buscar estudiantes...",
+      "showing": "Mostrando",
+      "of": "de",
+      "page": "Página",
+      "view": "Ver",
+      "filters": "Filtros",
+      "allStudents": "Todos los estudiantes",
+      "allLessons": "Todas las lecciones",
+      "allTests": "Todas las pruebas",
+      "studentsList": "Lista de Estudiantes",
+      "metrics": {
+        "totalStudents": "Total de Estudiantes",
+        "averageScore": "Promedio de Puntajes",
+        "approvalRate": "Tasa de Aprobación",
+        "failureRate": "Tasa de Reprobación"
+      },
+      "table": {
+        "student": "Estudiante",
+        "tests": "Pruebas",
+        "average": "Promedio",
+        "approved": "Aprobados",
+        "lessons": "Lecciones",
+        "lastActivity": "Última Actividad",
+        "actions": "Acciones"
+      },
+      "charts": {
+        "trends": "Tendencias de Puntajes por Prueba",
+        "distribution": "Distribución de Resultados",
+        "evolution": "Evolución de Puntajes"
+      },
+      "average": "Promedio",
+      "approved": "Aprobados",
+      "failed": "Reprobados",
+      "score": "Puntaje",
+      "export": {
+        "csv": "Exportar CSV",
+        "pdf": "Exportar PDF",
+        "success": "Datos exportados correctamente",
+        "error": "Error al exportar datos",
+        "pdfNotImplemented": "Exportación a PDF próximamente"
+      },
+      "exporting": "Exportando...",
+      "studentPerformance": "Desempeño",
+      "generalInfo": "Información General",
+      "email": "Email",
+      "lastActivity": "Última Actividad",
+      "testHistory": "Historial de Pruebas",
+      "noTests": "No hay pruebas registradas",
+      "test": "Prueba",
+      "attempts": "Intentos",
+      "bestScore": "Mejor Puntaje",
+      "status": "Estado",
+      "lastAttempt": "Último Intento",
+      "lessonProgress": "Progreso en Lecciones",
+      "noLessons": "No hay lecciones registradas",
+      "completed": "Completada",
+      "inProgress": "En Progreso",
+      "lastAccess": "Último acceso"
+    }
+  },
+  "lesson": {
+    "contents": "Contenidos",
+    "relatedLessons": "Lecciones relacionadas",
+    "pruebas": "Pruebas",
+    "takePrueba": "Tomar Prueba",
+    "noContent": "Esta lección aún no tiene contenidos ni pruebas",
+    "noPruebas": "Esta lección aún no tiene pruebas",
+    "back": "Volver a lecciones",
+    "notFound": "Lección no encontrada"
+  },
 
   "login": {
     "title": "Iniciar Sesión",
@@ -419,7 +599,9 @@
     "buttons": {
       "create": "Crear",
       "cancel": "Cancelar",
-      "creating": "Creando..."
+      "creating": "Creando...",
+      "update": "Actualizar",
+      "updating": "Actualizando..."
     },
     "errors": {
       "titleRequired": "El título es requerido",
@@ -434,7 +616,8 @@
     "openInNewTab": "Abrir en nueva pestaña",
     "success": {
       "created": "Lección creada",
-      "modelUploadedAndLinked": "Modelo de RA subido y asociado a la lección"
+      "modelUploadedAndLinked": "Modelo de RA subido y asociado a la lección",
+      "updated": "Lección actualizada"
       ,
       "createdAndAssigned": "Lección creada y asignada"
     }
@@ -499,6 +682,157 @@
     "placeholder": "Buscar..."
   },
   "sidebarOpen": "Abrir barra lateral",
-  "sidebarClose": "Cerrar barra lateral"
+  "sidebarClose": "Cerrar barra lateral",
+  "admin": {
+    "users": {
+      "title": "Gestión de Usuarios",
+      "description": "Administra todos los usuarios del sistema",
+      "search": "Buscar por email, nombre...",
+      "create": {
+        "title": "Crear Nuevo Usuario",
+        "button": "Crear Usuario"
+      },
+      "edit": {
+        "title": "Editar Usuario"
+      },
+      "export": "Exportar",
+      "loading": "Cargando usuario...",
+      "saving": "Guardando...",
+      "creating": "Creando...",
+      "save": "Guardar Cambios",
+      "cancel": "Cancelar",
+      "form": {
+        "email": "Email",
+        "password": "Contraseña",
+        "confirmPassword": "Confirmar Contraseña",
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "displayName": "Nombre para Mostrar",
+        "phone": "Teléfono",
+        "role": "Rol",
+        "isVerified": "Usuario Verificado",
+        "sendVerificationEmail": "Enviar email de verificación",
+        "emailNote": "Nota: Cambiar el email puede requerir verificación adicional",
+        "passwordMinLength": "Mínimo 6 caracteres"
+      },
+      "table": {
+        "email": "Email",
+        "name": "Nombre",
+        "role": "Rol",
+        "status": "Estado",
+        "createdAt": "Fecha Registro",
+        "actions": "Acciones",
+        "noUsers": "No hay usuarios para mostrar",
+        "noEmail": "Sin email",
+        "showing": "Mostrando",
+        "of": "de",
+        "users": "usuarios",
+        "page": "Página"
+      },
+      "status": {
+        "active": "Activo",
+        "inactive": "Inactivo",
+        "verified": "Verificado"
+      },
+      "filters": {
+        "title": "Filtros",
+        "role": "Rol",
+        "verificationStatus": "Estado de Verificación",
+        "activeStatus": "Estado Activo",
+        "dateFrom": "Fecha Desde",
+        "dateTo": "Fecha Hasta",
+        "all": "Todos",
+        "allRoles": "Todos",
+        "verified": "Verificado",
+        "notVerified": "No Verificado",
+        "active": "Activo",
+        "inactive": "Inactivo",
+        "clear": "Limpiar Filtros"
+      },
+      "actions": {
+        "edit": "Editar",
+        "delete": "Eliminar"
+      },
+      "warnings": {
+        "roleChange": "Advertencia: Estás cambiando el rol a Administrador. Esto otorgará permisos completos al usuario.",
+        "adminRole": "Advertencia: Estás creando un usuario con rol de Administrador. Esto otorgará permisos completos al usuario."
+      },
+      "confirmDelete": "¿Estás seguro de que deseas eliminar al usuario {{email}}?",
+      "success": {
+        "created": "Usuario creado exitosamente",
+        "updated": "Usuario actualizado exitosamente",
+        "deleted": "Usuario eliminado correctamente",
+        "exported": "Usuarios exportados exitosamente"
+      },
+      "errors": {
+        "loadError": "Error al cargar usuarios",
+        "createError": "Error al crear usuario",
+        "updateError": "Error al actualizar usuario",
+        "deleteError": "Error al eliminar usuario",
+        "exportError": "Error al exportar usuarios",
+        "emailRequired": "El email es requerido",
+        "passwordRequired": "La contraseña es requerida",
+        "passwordMinLength": "La contraseña debe tener al menos 6 caracteres",
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "userExists": "El usuario ya existe"
+      }
+    },
+    "dashboard": {
+      "title": "Dashboard General",
+      "description": "Vista general del sistema",
+      "errors": {
+        "loadError": "Error al cargar datos del dashboard"
+      },
+      "kpis": {
+        "totalUsers": "Total Usuarios",
+        "totalTeachers": "Total Profesores",
+        "totalStudents": "Total Estudiantes",
+        "totalLessons": "Total Lecciones",
+        "totalContents": "Total Contenidos",
+        "totalPruebas": "Total Pruebas",
+        "approvalRate": "Tasa de Aprobación",
+        "monthlyActivity": "Actividad del Mes"
+      },
+      "charts": {
+        "userGrowth": "Crecimiento de Usuarios",
+        "newUsers": "Nuevos Usuarios",
+        "pruebaActivity": "Actividad de Pruebas",
+        "totalAttempts": "Total Intentos",
+        "approved": "Aprobados",
+        "lessonCompletion": "Completación de Lecciones",
+        "completed": "Completadas",
+        "inProgress": "En Progreso",
+        "roleDistribution": "Distribución de Roles",
+        "topLessons": "Top 5 Lecciones Más Completadas",
+        "topPruebas": "Top 5 Pruebas con Mejor Desempeño",
+        "completions": "Completaciones",
+        "average": "Promedio (%)",
+        "attempts": "Intentos"
+      },
+      "activity": {
+        "recentUsers": "Usuarios Recientes",
+        "recentLessons": "Lecciones Recientes",
+        "recentContents": "Contenidos Recientes",
+        "recentPruebas": "Pruebas Recientes",
+        "noUsers": "No hay usuarios recientes",
+        "noLessons": "No hay lecciones recientes",
+        "noContents": "No hay contenidos recientes",
+        "noPruebas": "No hay pruebas recientes"
+      },
+      "quickLinks": {
+        "title": "Enlaces Rápidos",
+        "users": "Gestión de Usuarios",
+        "usersDesc": "Administrar todos los usuarios del sistema",
+        "contents": "Todos los Contenidos",
+        "contentsDesc": "Ver y gestionar todos los contenidos",
+        "pruebas": "Todas las Pruebas",
+        "pruebasDesc": "Ver y gestionar todas las pruebas",
+        "performance": "Panel de Desempeño",
+        "performanceDesc": "Ver desempeño de todos los estudiantes",
+        "addContent": "Añadir Contenido",
+        "addContentDesc": "Crear nuevo contenido o lección"
+      }
+    }
+  }
 
 }
