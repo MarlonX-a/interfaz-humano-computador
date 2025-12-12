@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from 'react-router-dom';
 import { supabase } from "../lib/supabaseClient";
+import { getProfile } from '../lib/data/profiles';
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
@@ -10,13 +11,34 @@ export default function LessonsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [lessons, setLessons] = useState<any[]>([]);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [highlightId, setHighlightId] = useState<number | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const lid = params.get('lessonId');
     setHighlightId(lid ? Number(lid) : null);
-    fetchLessons(lid ? Number(lid) : null);
+    const ensureAuthAndLoad = async () => {
+      setCheckingAuth(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) { navigate('/login'); return; }
+        try {
+          const { data: profile } = await getProfile(session.user.id);
+          const role = profile?.role || session.user.user_metadata?.role || null;
+          const allowed = ['student', 'teacher', 'admin'];
+          if (!allowed.includes(role)) { navigate('/login'); return; }
+        } catch (err) {
+          const role2 = session.user.user_metadata?.role || null;
+          const allowed2 = ['student', 'teacher', 'admin'];
+          if (!allowed2.includes(role2)) { navigate('/login'); return; }
+        }
+        fetchLessons(lid ? Number(lid) : null);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    ensureAuthAndLoad();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
@@ -37,6 +59,9 @@ export default function LessonsPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
+      {checkingAuth && (<div className="text-center py-8 text-gray-500">{t('loading') || 'Cargando...'}</div>)}
+      {!checkingAuth && (
+      <>
       <h1 className="text-2xl font-bold mb-4">{t("lessons.title", { defaultValue: i18n.language === 'es' ? 'Todas las clases' : 'Lessons' })}</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {lessons.length === 0 ? (
@@ -65,12 +90,14 @@ export default function LessonsPage() {
               </div>
 
               <div className="mt-4 flex items-center gap-2 justify-end">
-                <button onClick={() => navigate(`/lessons`)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">{t('lessons.card.viewClass', { defaultValue: i18n.language === 'es' ? 'Ver clase' : 'View class' })}</button>
+                <button onClick={() => navigate(`/lesson/${l.id}`)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">{t('lessons.card.viewClass', { defaultValue: i18n.language === 'es' ? 'Ver clase' : 'View class' })}</button>
               </div>
             </article>
           ))
         )}
       </div>
-    </div>
+      </>
+      )}
+      </div>
   );
 }

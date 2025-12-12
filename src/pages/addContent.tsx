@@ -46,6 +46,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateLessonModal, setShowCreateLessonModal] = useState(false);
+  const [editingLeccion, setEditingLeccion] = useState<Leccion | null>(null);
   // Modal removed: integrating features directly into form
   const [helpOpen, setHelpOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement | null>(null);
@@ -625,11 +626,26 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                 {/* Botón para abrir modal de creación de lección */}
                 <button
                   type="button"
-                  onClick={() => setShowCreateLessonModal(true)}
+                  onClick={() => { setEditingLeccion(null); setShowCreateLessonModal(true); }}
                   className="px-3 py-2 rounded bg-green-500 text-white hover:bg-green-600"
                 >
                   + {t("addcontent.form.createLesson") ?? "Nueva lección"}
                 </button>
+                {/* Botón para editar la lección seleccionada (si existe) */}
+                {form.leccion_id && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // find the leccion object and open modal in edit mode
+                      const l = lecciones.find((x) => x.id === form.leccion_id) ?? null;
+                      setEditingLeccion(l);
+                      setShowCreateLessonModal(true);
+                    }}
+                    className="px-3 py-2 rounded bg-yellow-300 text-black hover:bg-yellow-400"
+                  >
+                    {t('teacher.edit') || 'Editar lección'}
+                  </button>
+                )}
               </div>
               {errors.leccion_id && <p className="text-red-600 text-sm mt-1">{errors.leccion_id}</p>}
             </div>
@@ -833,9 +849,11 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       {/* Modal de crear lección (renderiza dentro del JSX) */}
       <CreateLessonModal
         open={showCreateLessonModal}
-        onClose={() => setShowCreateLessonModal(false)}
-        onCreated={handleLessonCreated}
+        onClose={() => { setShowCreateLessonModal(false); setEditingLeccion(null); }}
+        onCreated={(id) => { handleLessonCreated(id); setEditingLeccion(null); }}
+        onUpdated={() => { /* refresh list and keep selection */ fetchLeccionesAvailable(); setEditingLeccion(null); const msg = t('createLesson.success.updated') || 'Lección actualizada'; toast.success(msg); }}
         parentLeccionId={form.leccion_id}
+        leccion={editingLeccion}
       />
       {/* Help modal for the page */}
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} title={t('addContentHelpTitle') || 'Ayuda - Añadir Contenido'}>

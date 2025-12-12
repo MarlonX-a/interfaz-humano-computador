@@ -22,8 +22,17 @@ import Experiments from "./pages/experiments";
 import SettingsPage from "./pages/settings";
 import Articles from "./pages/articles";
 import ContentsPage from "./pages/contents";
+import TeacherDashboard from "./pages/teacher/dashboard";
+import TeacherLessons from "./pages/teacher/lessons";
+import TeacherContents from "./pages/teacher/contents";
+import TeacherPruebas from "./pages/teacher/pruebas";
+import TeacherQuestions from "./pages/teacher/questions";
+import TeacherPerformance from "./pages/teacher/performance";
 import ContenidoPage from "./pages/contenido";
 import LessonsPage from "./pages/lessons";
+import LessonDetailPage from "./pages/lesson-detail";
+import AdminUsers from "./pages/admin/users";
+import AdminDashboard from "./pages/admin/dashboard";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
@@ -192,7 +201,16 @@ function App() {
               {/* 'clase' route removed: view-only lessons page (/lessons) replaced the need for per-lesson route */}
               <Route path="/contenido/:contentId" element={<ContenidoPage />} />
               <Route path="/lessons" element={<LessonsPage />} />
+              <Route path="/lesson/:lessonId" element={<LessonDetailPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/teacher" element={<TeacherDashboard />} />
+              <Route path="/teacher/lessons" element={<TeacherLessons />} />
+              <Route path="/teacher/contents" element={<TeacherContents />} />
+              <Route path="/teacher/pruebas" element={<TeacherPruebas />} />
+              <Route path="/teacher/questions" element={<TeacherQuestions />} />
+              <Route path="/teacher/performance" element={<TeacherPerformance />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
               {/* accessibility route removed; toggles are available in sidebar */}
             </Routes>
             <Toaster />

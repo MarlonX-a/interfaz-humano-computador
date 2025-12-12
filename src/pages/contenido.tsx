@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
+import { getProfile } from "../lib/data/profiles";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 
@@ -11,11 +12,43 @@ export default function ContenidoPage() {
   const [content, setContent] = useState<any | null>(null);
   // content-only page: each content shows the lesson it is linked to
   const [lesson, setLesson] = useState<any | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    if (!contentId) return;
-    fetchContent(contentId);
-  }, [contentId]);
+    const ensureAuthAndLoad = async () => {
+      setCheckingAuth(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) {
+          navigate('/login');
+          return;
+        }
+        // Check role via profile; fallback to token metadata
+        try {
+          const { data: profile } = await getProfile(session.user.id);
+          const role = profile?.role || session.user.user_metadata?.role || null;
+          const allowed = ['student', 'teacher', 'admin'];
+          if (!allowed.includes(role)) {
+            navigate('/login');
+            return;
+          }
+        } catch (err) {
+          const role2 = session.user.user_metadata?.role || null;
+          const allowed2 = ['student', 'teacher', 'admin'];
+          if (!allowed2.includes(role2)) {
+            navigate('/login');
+            return;
+          }
+        }
+        if (!contentId) return;
+        await fetchContent(contentId);
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    ensureAuthAndLoad();
+  }, [contentId, navigate]);
 
   const fetchContent = async (id: number) => {
     const { data, error } = await supabase
@@ -52,6 +85,11 @@ export default function ContenidoPage() {
 
   return (
     <main className="max-w-4xl mx-auto p-4">
+      {checkingAuth && (
+        <div className="text-center py-8 text-gray-500">{t('loading') || 'Cargando...'}</div>
+      )}
+      {!checkingAuth && (
+      <>
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">
@@ -107,6 +145,8 @@ export default function ContenidoPage() {
         )}
       </div>
       {/* Showing only the linked lesson for this content — the lesson card above is the single lesson related to the open content */}
+      </>
+      )}
     </main>
   );
 }
