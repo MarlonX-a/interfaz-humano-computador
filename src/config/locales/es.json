@@ -30,6 +30,10 @@
         "easy": "Fácil",
         "medium": "Media",
         "hard": "Difícil"
+      },
+      "multimediaContent": "Contenido multimedia",
+      "multimedia": {
+        "content": "Contenido Multimedia"
       }
     },
     "table": {
@@ -77,7 +81,13 @@
     }
     ,
     "loadLessonsError": "Error al cargar lecciones",
-    "loadRecordsError": "Error al cargar contenidos"
+    "loadRecordsError": "Error al cargar contenidos",
+    "tabs": {
+      "text": "Texto",
+      "slides": "Diapositivas",
+      "media": "Media",
+      "textDescription": "El texto descriptivo se edita arriba en el campo 'Descripción'."
+    }
   },
   "sidebarNav": "Barra lateral de navegación",
   "sidebarLabel": "Navegación principal",

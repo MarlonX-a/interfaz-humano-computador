@@ -12,6 +12,8 @@ export interface Leccion {
   nivel: string | null;
   thumbnail_url: string | null;
   created_by?: string | null;
+  slides?: ContentSlide[] | null;
+  media_files?: MediaFile[] | null;
 }
 
 /** Tabla: contenido */
@@ -29,6 +31,31 @@ export interface Contenido {
   version?: number | null;
   updated_at?: string | null;
   updated_by?: string | null;
+  // Nuevos campos para multimedia
+  media_url?: string | null;
+  media_type?: 'video' | 'audio' | 'pdf' | 'embed' | 'image' | null;
+  slides?: ContentSlide[] | null;
+  duracion_estimada?: number | null;
+  // Múltiples archivos de media
+  media_files?: MediaFile[] | null;
+}
+
+/** Archivo de media individual */
+export interface MediaFile {
+  url: string;
+  type: 'video' | 'audio' | 'pdf' | 'embed' | 'image';
+  name?: string;
+  size?: number;
+}
+
+/** Slide individual para presentaciones */
+export interface ContentSlide {
+  title: string;
+  content_html: string;
+  image_url?: string | null;
+  model_id?: number | null;
+  // Soporte para slides subidos desde PDF
+  pdf_page_url?: string | null;
 }
 
 /** Tabla intermedia: contenido_leccion (relación muchos-a-muchos) */
@@ -50,6 +77,56 @@ export interface ModeloRA {
   tipo: string | null;
   descripcion: string | null;
   created_by?: string | null;
+  // Nuevos campos para auto-matching
+  keywords?: string[] | null;
+  molecule_formula?: string | null;
+  categoria?: string | null;
+  descripcion_corta?: string | null;
+}
+
+/** Tabla: contenido_modelo (vincula modelos a contenidos específicos) */
+export interface ContenidoModelo {
+  id: number;
+  contenido_id: number;
+  modelo_ra_id: number;
+  orden: number;
+  es_principal: boolean;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+/** Tipo de sección en leccion_seccion */
+export type TipoSeccion = 'contenido' | 'prueba' | 'modelo';
+
+/** Tabla: leccion_seccion (flujo ordenado de lección) */
+export interface LeccionSeccion {
+  id: number;
+  leccion_id: number;
+  tipo: TipoSeccion;
+  contenido_id: number | null;
+  prueba_id: number | null;
+  modelo_id: number | null;
+  orden: number;
+  es_obligatorio: boolean;
+  requisitos: number[];
+  titulo_seccion: string | null;
+  descripcion_seccion: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+/** Tabla: progreso_seccion (tracking por sección) */
+export interface ProgresoSeccion {
+  id: number;
+  user_id: string;
+  leccion_seccion_id: number;
+  completado: boolean;
+  puntuacion: number | null;
+  intentos: number;
+  tiempo_dedicado: number;
+  fecha_completado: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 /** Tabla: prueba */
@@ -126,6 +203,18 @@ export type ContenidoUpdate = Partial<ContenidoInsert>;
 export type ModeloRAInsert = Omit<ModeloRA, "id">;
 export type ModeloRAUpdate = Partial<ModeloRAInsert>;
 
+/** Para insertar contenido_modelo */
+export type ContenidoModeloInsert = Omit<ContenidoModelo, "id" | "created_at" | "updated_at">;
+export type ContenidoModeloUpdate = Partial<ContenidoModeloInsert>;
+
+/** Para insertar leccion_seccion */
+export type LeccionSeccionInsert = Omit<LeccionSeccion, "id" | "created_at" | "updated_at">;
+export type LeccionSeccionUpdate = Partial<LeccionSeccionInsert>;
+
+/** Para insertar progreso_seccion */
+export type ProgresoSeccionInsert = Omit<ProgresoSeccion, "id" | "created_at" | "updated_at">;
+export type ProgresoSeccionUpdate = Partial<ProgresoSeccionInsert>;
+
 /** Para insertar prueba */
 export type PruebaInsert = Omit<Prueba, "id" | "created_at" | "updated_at">;
 export type PruebaUpdate = Partial<PruebaInsert>;
@@ -166,6 +255,16 @@ export interface LeccionCompleta extends Leccion {
   modelos_ra: ModeloRA[];
   preguntas: PreguntaConRespuestas[];
   pruebas: Prueba[];
+  secciones?: LeccionSeccionCompleta[];
+}
+
+/** Sección de lección con datos completos */
+export interface LeccionSeccionCompleta extends LeccionSeccion {
+  contenido?: Contenido | null;
+  prueba?: Prueba | null;
+  modelo?: ModeloRA | null;
+  progreso?: ProgresoSeccion | null;
+  bloqueada?: boolean; // Calculado basándose en requisitos
 }
 
 /** Progreso con datos de lección (para vistas de usuario) */

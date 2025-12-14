@@ -114,21 +114,34 @@ export default function ModelViewerModal({ open, onClose, url, title }: ModelVie
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="relative w-[90%] max-w-4xl h-[80%] bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-white z-10 relative">
           <div className="font-semibold">{title || 'Modelo 3D'}</div>
-          <button onClick={onClose} aria-label="Cerrar" className="p-2 rounded hover:bg-gray-100">
-            <X size={18} />
+          <button 
+            onClick={onClose} 
+            aria-label="Cerrar" 
+            className="p-2 rounded hover:bg-gray-100 flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          >
+            <span className="text-sm hidden sm:inline">Cerrar</span>
+            <X size={20} />
           </button>
         </div>
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 top-[52px] flex items-center justify-center">
           {loading && (
-            <div className="text-center">
+            <div className="text-center z-10">
               <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
               <div className="text-sm text-gray-600">Cargando modelo...</div>
             </div>
           )}
           <div ref={containerRef} className="w-full h-full" />
         </div>
+        {/* Botón flotante de cerrar para mayor visibilidad */}
+        <button
+          onClick={onClose}
+          className="absolute bottom-4 right-4 z-20 px-4 py-2 bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700 flex items-center gap-2 transition-colors"
+        >
+          <X size={18} />
+          <span>Cerrar modelo</span>
+        </button>
       </div>
     </div>
   );

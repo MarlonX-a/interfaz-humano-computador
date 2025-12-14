@@ -12,6 +12,7 @@ interface TakePruebaModalProps {
   onClose: () => void;
   pruebaId: number;
   leccionId: number;
+  seccionId?: number; // ID de la sección para marcar como completada
 }
 
 // Format seconds into H:MM:SS or MM:SS
@@ -32,6 +33,7 @@ export default function TakePruebaModal({
   onClose,
   pruebaId,
   leccionId,
+  seccionId,
 }: TakePruebaModalProps) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
@@ -205,6 +207,46 @@ export default function TakePruebaModal({
           started_at: startedAt?.toISOString() || null,
           completed_at: new Date().toISOString(),
         });
+
+        // Marcar sección como completada si aprobó y hay seccionId
+        if (aprobado && seccionId) {
+          try {
+            await supabase
+              .from('progreso_seccion')
+              .upsert({
+                user_id: usuarioId,
+                leccion_seccion_id: seccionId,
+                completado: true,
+                puntuacion: score.porcentaje,
+                intentos: 1,
+                fecha_completado: new Date().toISOString(),
+              }, { onConflict: 'user_id,leccion_seccion_id' });
+          } catch (e) {
+            console.error('Error updating progreso_seccion:', e);
+          }
+        } else if (seccionId) {
+          // Incrementar intentos si no aprobó
+          try {
+            const { data: progresoSeccion } = await supabase
+              .from('progreso_seccion')
+              .select('intentos')
+              .eq('user_id', usuarioId)
+              .eq('leccion_seccion_id', seccionId)
+              .maybeSingle();
+
+            await supabase
+              .from('progreso_seccion')
+              .upsert({
+                user_id: usuarioId,
+                leccion_seccion_id: seccionId,
+                completado: false,
+                puntuacion: score.porcentaje,
+                intentos: (progresoSeccion?.intentos || 0) + 1,
+              }, { onConflict: 'user_id,leccion_seccion_id' });
+          } catch (e) {
+            console.error('Error updating progreso_seccion intentos:', e);
+          }
+        }
 
         // Actualizar progreso de la lección
         const { data: progresoData } = await supabase
