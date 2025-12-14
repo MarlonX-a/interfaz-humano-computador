@@ -30,6 +30,10 @@
         "easy": "Easy",
         "medium": "Medium",
         "hard": "Hard"
+      },
+      "multimediaContent": "Multimedia content",
+      "multimedia": {
+        "content": "Multimedia content"
       }
     },
     "table": {
@@ -77,7 +81,13 @@
     }
     ,
     "loadLessonsError": "Error loading lessons",
-    "loadRecordsError": "Error loading records"
+    "loadRecordsError": "Error loading records",
+    "tabs": {
+      "text": "Text",
+      "slides": "Slides",
+      "media": "Media",
+      "textDescription": "Descriptive text is edited above in the 'Description' field."
+    }
   },
   "sidebarNav": "Sidebar navigation",
   "sidebarLabel": "Main navigation",

@@ -59,7 +59,7 @@ export default function TeacherPruebas() {
         data.map(async (p) => {
           const { data: leccionData } = await supabase
             .from('leccion')
-            .select('id, titulo')
+            .select('id, titulo, created_by')
             .eq('id', p.leccion_id)
             .single();
           return { ...p, leccion: leccionData };
@@ -240,25 +240,31 @@ export default function TeacherPruebas() {
 
                       {/* Actions */}
                       <div className="flex gap-2 pt-4 border-t">
-                        <button
-                          onClick={() => handleEdit(p.id)}
-                          className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
-                          disabled={isDeleting}
-                        >
-                          <Edit size={16} />
-                          <span className="text-sm font-medium">{t('teacher.edit') || 'Editar'}</span>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(p.id)}
-                          className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
-                          disabled={isDeleting}
-                        >
-                          {isDeleting ? (
-                            <div className="w-4 h-4 border-2 border-red-700 border-t-transparent rounded-full animate-spin"></div>
-                          ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </button>
+                        { (isAdmin || (userId && (p.created_by === userId || (leccion && leccion.created_by === userId)))) ? (
+                          <>
+                            <button
+                              onClick={() => handleEdit(p.id)}
+                              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+                              disabled={isDeleting}
+                            >
+                              <Edit size={16} />
+                              <span className="text-sm font-medium">{t('teacher.edit') || 'Editar'}</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(p.id)}
+                              className="flex items-center justify-center gap-2 px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors"
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? (
+                                <div className="w-4 h-4 border-2 border-red-700 border-t-transparent rounded-full animate-spin"></div>
+                              ) : (
+                                <Trash2 size={16} />
+                              )}
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex-1"></div>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -4,9 +4,12 @@ import { X } from "lucide-react";
 import toast from "react-hot-toast";
 import { updateContenido, getContenido, updateContenidoLecciones } from "../lib/data/contenidos";
 import { supabase } from "../lib/supabaseClient";
-import type { ContenidoConLecciones, ContenidoUpdate, Leccion } from "../types/db";
+import type { ContenidoConLecciones, ContenidoUpdate, Leccion, ContentSlide, ModeloRA, MediaFile } from "../types/db";
 import CreateLessonModal from "./CreateLessonModal";
 import { listLecciones } from "../lib/data/lecciones";
+import SlideEditor from "./SlideEditor";
+import MultiMediaUploader from "./MultiMediaUploader";
+import { listModelosByLeccion } from "../lib/data/modelos";
 
 interface EditContenidoModalProps {
   open: boolean;
@@ -44,6 +47,12 @@ export default function EditContenidoModal({
   const [resources, setResources] = useState<string[]>([]);
   const [selectedLeccionIds, setSelectedLeccionIds] = useState<number[]>([]);
   const [orden, setOrden] = useState<number | null>(null);
+  
+  // Nuevos estados para slides y media
+  const [slides, setSlides] = useState<ContentSlide[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [availableModelos, setAvailableModelos] = useState<ModeloRA[]>([]);
+  const [activeTab, setActiveTab] = useState<'content' | 'slides' | 'media'>('content');
 
   // Tag input
   const [tagInput, setTagInput] = useState("");
@@ -72,6 +81,9 @@ export default function EditContenidoModal({
       { value: "chemical-reaction", label: t("addcontent.form.typeOptions.chemicalReactions") },
       { value: "periodic-table", label: t("addcontent.form.typeOptions.periodicTable") },
       { value: "article", label: t("addcontent.form.typeOptions.article") },
+      { value: "slide", label: t("addcontent.form.typeOptions.slide", { defaultValue: "Presentación/Slides" }) },
+      { value: "document", label: t("addcontent.form.typeOptions.document", { defaultValue: "Documento" }) },
+      { value: "video", label: t("addcontent.form.typeOptions.video", { defaultValue: "Video" }) },
     ],
     [t]
   );
@@ -116,6 +128,25 @@ export default function EditContenidoModal({
       // Cargar IDs de lecciones asociadas
       setSelectedLeccionIds(data.lecciones?.map((l) => l.id) || []);
       setOrden(data.orden);
+      // Cargar slides y media
+      setSlides(Array.isArray(data.slides) ? data.slides : []);
+      // Cargar media files (nuevo array) o migrar desde media_url legacy
+      if (Array.isArray(data.media_files) && data.media_files.length > 0) {
+        setMediaFiles(data.media_files);
+      } else if (data.media_url && data.media_type) {
+        // Migrar formato legacy a nuevo formato
+        setMediaFiles([{ url: data.media_url, type: data.media_type, name: 'Archivo' }]);
+      } else {
+        setMediaFiles([]);
+      }
+      // Determinar tab activo según contenido
+      if (data.slides && data.slides.length > 0) {
+        setActiveTab('slides');
+      } else if ((data.media_files && data.media_files.length > 0) || data.media_url) {
+        setActiveTab('media');
+      } else {
+        setActiveTab('content');
+      }
     } catch (error: any) {
       console.error("Error loading contenido:", error);
       toast.error(error?.message || t('teacher.contents.loadError') || 'Error al cargar contenido');
@@ -134,6 +165,25 @@ export default function EditContenidoModal({
       console.error("Error loading lecciones:", error);
     }
   };
+
+  // Cargar modelos disponibles cuando cambian las lecciones seleccionadas
+  useEffect(() => {
+    const loadModelos = async () => {
+      if (selectedLeccionIds.length === 0) {
+        setAvailableModelos([]);
+        return;
+      }
+      try {
+        // Cargar modelos de la primera lección seleccionada
+        const modelos = await listModelosByLeccion(selectedLeccionIds[0]);
+        setAvailableModelos(modelos);
+      } catch (error) {
+        console.error("Error loading modelos:", error);
+        setAvailableModelos([]);
+      }
+    };
+    loadModelos();
+  }, [selectedLeccionIds]);
 
   const handleLessonCreated = (newId: number) => {
     setPendingLecciones((prev) => [...prev, newId]);
@@ -187,6 +237,11 @@ export default function EditContenidoModal({
         tags: tags.length > 0 ? tags : null,
         resources: resources.filter((r) => r.trim()).length > 0 ? resources.filter((r) => r.trim()) : null,
         orden: orden,
+        slides: slides.length > 0 ? slides : null,
+        media_files: mediaFiles.length > 0 ? mediaFiles : null,
+        // Mantener compatibilidad con campos legacy
+        media_url: mediaFiles.length > 0 ? mediaFiles[0].url : null,
+        media_type: mediaFiles.length > 0 ? mediaFiles[0].type : null,
       };
 
       await updateContenido(contenidoId, payload);
@@ -658,6 +713,77 @@ export default function EditContenidoModal({
                   >
                     {t("addcontent.form.addResource") || "+ Agregar recurso"}
                   </button>
+                </div>
+
+                {/* Pestañas de contenido multimedia */}
+                <div className="border-t pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    {t("addcontent.form.multimediaContent") || "Contenido Multimedia"}
+                  </label>
+                  <div className="flex gap-2 mb-4 border-b">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('content')}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'content' 
+                          ? 'border-blue-500 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {t("addcontent.tabs.text") || "Texto"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('slides')}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'slides' 
+                          ? 'border-blue-500 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {t("addcontent.tabs.slides") || "Diapositivas"} {slides.length > 0 && `(${slides.length})`}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('media')}
+                      className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === 'media' 
+                          ? 'border-blue-500 text-blue-600' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {t("addcontent.tabs.media") || "Media"} {mediaFiles.length > 0 && `(${mediaFiles.length})`}
+                    </button>
+                  </div>
+
+                  {/* Contenido según pestaña activa */}
+                  {activeTab === 'content' && (
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-2">
+                        {t("addcontent.tabs.textDescription") || "El texto descriptivo se edita arriba en el campo 'Descripción'."}
+                      </p>
+                    </div>
+                  )}
+
+                  {activeTab === 'slides' && (
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <SlideEditor 
+                        slides={slides} 
+                        onChange={setSlides}
+                        availableModelos={availableModelos}
+                      />
+                    </div>
+                  )}
+
+                  {activeTab === 'media' && (
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <MultiMediaUploader
+                        mediaFiles={mediaFiles}
+                        onMediaFilesChange={setMediaFiles}
+                        bucketName="contenidos"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Botones de acción */}

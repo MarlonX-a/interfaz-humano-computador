@@ -23,7 +23,9 @@ export default function LessonsPage() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const lid = params.get('lessonId');
+    const cid = params.get('contentId');
     const lidNum = parseId(lid);
+    const cidNum = parseId(cid);
     setHighlightId(lidNum);
       let progressChannel: unknown | null = null;
     const ensureAuthAndLoad = async () => {
@@ -42,7 +44,7 @@ export default function LessonsPage() {
           if (!allowed2.includes(role2)) { navigate('/login'); return; }
         }
         // reuse same session value declared above
-        await fetchLessons(lidNum ?? null);
+        await fetchLessons(lidNum ?? null, cidNum ?? null);
         // fetchProgresos returns an object with { channel, lastVisitedId }
         // assign channel for cleanup and navigate to last visited if appropriate
         const resultado = await fetchProgresos(session.user.id);
@@ -79,19 +81,49 @@ export default function LessonsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
-  const fetchLessons = async (onlyId?: number | null) => {
-    const query = supabase
-      .from("leccion")
-      .select("id,titulo,descripcion,nivel,thumbnail_url,created_at")
-      .order('created_at', { ascending: false });
-    const { data, error } = onlyId ? await query.eq('id', onlyId) : await query;
-    if (error) {
-      console.error("Error fetching lessons", error);
-      toast.error(t("lessons.loadError", { defaultValue: "Error loading lessons" }));
-      return;
+  const fetchLessons = async (onlyId?: number | null, contentId?: number | null) => {
+    try {
+      // If contentId provided, fetch lessons associated to that content (preserve order)
+      if (contentId != null) {
+        const { data: mappings, error: mapErr } = await supabase
+          .from('contenido_leccion')
+          .select('leccion_id, orden')
+          .eq('contenido_id', contentId)
+          .order('orden', { ascending: true, nullsFirst: false });
+        if (mapErr) throw mapErr;
+        const leccionIds = (mappings || []).map((m: any) => m.leccion_id).filter(Boolean);
+        if (leccionIds.length === 0) {
+          setLessons([]);
+          return;
+        }
+        const { data: lessonsData, error: lessonsErr } = await supabase
+          .from('leccion')
+          .select('id,titulo,descripcion,nivel,thumbnail_url,created_at')
+          .in('id', leccionIds);
+        if (lessonsErr) throw lessonsErr;
+        // Preserve order according to leccionIds
+        const lessonsById = (lessonsData || []).reduce((acc: any, l: any) => { acc[l.id] = l; return acc; }, {} as Record<number, any>);
+        const ordered = leccionIds.map((id: number) => lessonsById[id]).filter(Boolean);
+        setLessons(ordered);
+        return;
+      }
+
+      const query = supabase
+        .from("leccion")
+        .select("id,titulo,descripcion,nivel,thumbnail_url,created_at")
+        .order('created_at', { ascending: false });
+      const { data, error } = onlyId ? await query.eq('id', onlyId) : await query;
+      if (error) {
+        console.error("Error fetching lessons", error);
+        toast.error(t("lessons.loadError", { defaultValue: "Error loading lessons" }));
+        return;
+      }
+      // If onlyId passed, ensure only the specific lesson is shown
+      setLessons((data || []));
+    } catch (err) {
+      console.error('Error fetching lessons for content:', err);
+      toast.error(t('lessons.loadError', { defaultValue: 'Error loading lessons' }));
     }
-    // If onlyId passed, ensure only the specific lesson is shown
-    setLessons((data || []));
   };
 
   const fetchProgresos = async (usuarioId: string) => {

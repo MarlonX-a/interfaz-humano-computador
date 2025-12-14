@@ -4,10 +4,13 @@ import { supabase } from "../lib/supabaseClient";
 import toast from "react-hot-toast";
 import heroImage from "../img/quimica1.png";
 import { useTranslation } from "react-i18next";
-import type { Leccion } from "../types/db"; // asegúrate de haber creado src/types/db.ts
+import type { Leccion, ContentSlide, ModeloRA, MediaFile } from "../types/db";
 import CreateLessonModal from "../components/CreateLessonModal";
 import HelpModal from "../components/HelpModal";
+import SlideEditor from "../components/SlideEditor";
+import MultiMediaUploader from "../components/MultiMediaUploader";
 import { parseId } from '../lib/parseId';
+import { listModelosByLeccion } from "../lib/data/modelos";
 
 interface RecordType {
   id?: number;
@@ -20,6 +23,11 @@ interface RecordType {
   description: string;
   resources: string[];
   orden?: number | null;
+  slides?: ContentSlide[] | null;
+  media_files?: MediaFile[] | null;
+  // Legacy fields for backwards compatibility
+  media_url?: string | null;
+  media_type?: 'video' | 'audio' | 'pdf' | 'embed' | 'image' | null;
 }
 
 type Difficulty = "fácil" | "media" | "difícil";
@@ -40,7 +48,15 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
     description: "",
     resources: [""],
     orden: undefined,
+    slides: [],
+    media_files: [],
+    media_url: null,
+    media_type: null,
   });
+  
+  // Estados para multimedia
+  const [activeTab, setActiveTab] = useState<'content' | 'slides' | 'media'>('content');
+  const [availableModelos, setAvailableModelos] = useState<ModeloRA[]>([]);
   const [records, setRecords] = useState<RecordType[]>([]);
   const [filter, setFilter] = useState("");
   const [tagInput, setTagInput] = useState("");
@@ -76,6 +92,9 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       { value: "chemical-reaction", label: t("addcontent.form.typeOptions.chemicalReactions") },
       { value: "periodic-table", label: t("addcontent.form.typeOptions.periodicTable") },
       { value: "article", label: t("addcontent.form.typeOptions.article") },
+      { value: "slide", label: t("addcontent.form.typeOptions.slide", { defaultValue: "Presentación/Slides" }) },
+      { value: "document", label: t("addcontent.form.typeOptions.document", { defaultValue: "Documento" }) },
+      { value: "video", label: t("addcontent.form.typeOptions.video", { defaultValue: "Video" }) },
     ],
     [t]
   );
@@ -134,7 +153,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       (async () => {
         const contentNum = parseId(contentId);
         if (contentNum == null) return;
-        const { data, error } = await supabase.from('contenido').select('id,leccion_id,titulo,texto_html,type,author,difficulty,tags,resources,orden').eq('id', contentNum).single();
+        const { data, error } = await supabase.from('contenido').select('id,leccion_id,titulo,texto_html,type,author,difficulty,tags,resources,orden,slides,media_files,media_url,media_type').eq('id', contentNum).single();
         if (!error && data) {
           editRecord({
             id: data.id,
@@ -147,6 +166,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
             tags: Array.isArray(data.tags) ? data.tags : [],
             resources: Array.isArray(data.resources) ? data.resources : [],
             orden: data.orden ?? undefined,
+            slides: Array.isArray(data.slides) ? data.slides : [],
+            media_files: Array.isArray(data.media_files) ? data.media_files : [],
+            media_url: data.media_url ?? null,
+            media_type: data.media_type ?? null,
           });
         }
       })();
@@ -233,7 +256,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
     // Traemos los campos de la tabla 'contenido'
     const { data, error } = await supabase
       .from("contenido")
-      .select("id,leccion_id,titulo,texto_html,orden,type,author,difficulty,tags,resources")
+      .select("id,leccion_id,titulo,texto_html,orden,type,author,difficulty,tags,resources,slides,media_url,media_type")
       .order("orden", { ascending: true });
     if (error) {
       console.error("❌ Error al obtener registros:", error);
@@ -254,6 +277,9 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       tags: Array.isArray(c.tags) ? c.tags : [],
       resources: Array.isArray(c.resources) ? c.resources : [],
       orden: c.orden ?? undefined,
+      slides: Array.isArray(c.slides) ? c.slides : [],
+      media_url: c.media_url ?? null,
+      media_type: c.media_type ?? null,
     }));
       setRecords(mapped);
     }
@@ -280,6 +306,24 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   };
   const removeTag = (tag: string) => setForm((f) => ({ ...f, tags: f.tags.filter((t) => t !== tag) }));
 
+  // Cargar modelos disponibles cuando cambia la lección seleccionada
+  useEffect(() => {
+    const loadModelos = async () => {
+      if (!form.leccion_id) {
+        setAvailableModelos([]);
+        return;
+      }
+      try {
+        const modelos = await listModelosByLeccion(form.leccion_id);
+        setAvailableModelos(modelos);
+      } catch (error) {
+        console.error("Error loading modelos:", error);
+        setAvailableModelos([]);
+      }
+    };
+    loadModelos();
+  }, [form.leccion_id]);
+
   const addResource = () => setForm((f) => ({ ...f, resources: [...f.resources, ""] }));
   const removeResource = (idx: number) => setForm((f) => ({ ...f, resources: f.resources.filter((_, i) => i !== idx) }));
   const setResource = (idx: number, val: string) =>
@@ -297,10 +341,16 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       description: "",
       resources: [""],
       orden: undefined,
+      slides: [],
+      media_files: [],
+      media_url: null,
+      media_type: null,
     });
     setErrors({});
     setIsEditing(false);
     setTagInput("");
+    setActiveTab('content');
+    setAvailableModelos([]);
   };
 
   const validateFields = () => {
@@ -344,7 +394,12 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       author: form.author,
       difficulty: form.difficulty,
       tags: form.tags,         // [] array
-      resources: form.resources // [] array
+      resources: form.resources, // [] array
+      slides: form.slides && form.slides.length > 0 ? form.slides : null,
+      media_files: form.media_files && form.media_files.length > 0 ? form.media_files : null,
+      // Mantener compatibilidad con campos legacy
+      media_url: form.media_files && form.media_files.length > 0 ? form.media_files[0].url : null,
+      media_type: form.media_files && form.media_files.length > 0 ? form.media_files[0].type : null,
     };
 
     setSaving(true);
@@ -509,6 +564,14 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   };
 
   const editRecord = (r: RecordType) => {
+    // Cargar media_files o migrar desde legacy media_url/media_type
+    let mediaFiles: MediaFile[] = [];
+    if (r.media_files && r.media_files.length > 0) {
+      mediaFiles = r.media_files;
+    } else if (r.media_url && r.media_type) {
+      mediaFiles = [{ url: r.media_url, type: r.media_type, name: 'Archivo' }];
+    }
+    
     setForm({
       id: r.id,
       leccion_id: r.leccion_id,
@@ -520,8 +583,20 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       tags: r.tags,
       resources: r.resources,
       orden: r.orden,
+      slides: r.slides || [],
+      media_files: mediaFiles,
+      media_url: r.media_url || null,
+      media_type: r.media_type || null,
     });
     setIsEditing(true);
+    // Determinar tab activo según contenido
+    if (r.slides && r.slides.length > 0) {
+      setActiveTab('slides');
+    } else if (mediaFiles.length > 0) {
+      setActiveTab('media');
+    } else {
+      setActiveTab('content');
+    }
   };
 
   const deleteRecord = async (id: number | undefined) => {
@@ -764,6 +839,77 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                 </div>
               ))}
               <button type="button" className="underline text-sm" onClick={addResource}>{t("addcontent.form.addResource")}</button>
+            </div>
+
+            {/* Pestañas de contenido multimedia */}
+            <div className="border-t pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                {t("addcontent.form.multimediaContent") || "Contenido Multimedia"}
+              </label>
+              <div className="flex gap-2 mb-4 border-b">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('content')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'content' 
+                      ? 'border-blue-500 text-blue-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {t("addcontent.tabs.text") || "Texto"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('slides')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'slides' 
+                      ? 'border-blue-500 text-blue-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {t("addcontent.tabs.slides") || "Diapositivas"} {(form.slides?.length ?? 0) > 0 && `(${form.slides?.length})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('media')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'media' 
+                      ? 'border-blue-500 text-blue-600' 
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {t("addcontent.tabs.media") || "Media"} {(form.media_files?.length ?? 0) > 0 && `(${form.media_files?.length})`}
+                </button>
+              </div>
+
+              {/* Contenido según pestaña activa */}
+              {activeTab === 'content' && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    {t("addcontent.tabs.textDescription") || "El texto descriptivo se edita arriba en el campo 'Descripción'."}
+                  </p>
+                </div>
+              )}
+
+              {activeTab === 'slides' && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <SlideEditor 
+                    slides={form.slides || []} 
+                    onChange={(newSlides) => setForm(f => ({ ...f, slides: newSlides }))}
+                    availableModelos={availableModelos}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'media' && (
+                <div className="p-4 bg-gray-50 rounded-lg">
+                  <MultiMediaUploader
+                    mediaFiles={form.media_files || []}
+                    onMediaFilesChange={(files) => setForm(f => ({ ...f, media_files: files }))}
+                    bucketName="contenidos"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-end mt-4">
