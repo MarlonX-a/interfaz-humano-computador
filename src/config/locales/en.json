@@ -222,9 +222,23 @@
     "title": "Lessons",
     "noRecords": "No lessons found",
     "loadError": "Error loading lessons",
+    "back": "Back to lessons",
+    "invalidId": "Invalid lesson ID",
+    "notFound": "Lesson not found",
+    "markComplete": "Mark as completed",
+    "markedCompleted": "Lesson marked as completed",
+    "completed": "Completed",
     "card": {
       "viewClass": "View class",
-      "noThumbnail": "No thumbnail"
+      "noThumbnail": "No thumbnail",
+      "continue": "Continue",
+      "complete": "Completed"
+    }
+    ,
+    "status": {
+      "completed": "Completed — review resources and results",
+      "inProgress": "In progress — current score {{score}}%",
+      "notStarted": "Not started — begin the lesson to make progress"
     }
   },
   "contents.loadLessonsError": "Error loading lessons",
@@ -432,6 +446,7 @@
       "preguntas": "Questions",
       "addPregunta": "Add Question",
       "noPreguntas": "No questions. Add at least one.",
+      "noQuestions": "This test has no questions",
       "pregunta": "Question",
       "preguntaTexto": "Question text",
       "tipoPregunta": "Type",
@@ -464,6 +479,20 @@
       "correctAnswer": "Correct answer",
       "submit": "Submit Test",
       "confirmSubmitIncomplete": "You haven't answered all questions. Do you want to submit anyway?",
+        "finish": "Finish assessment",
+        "reviewBeforeSubmit": "Review before submitting",
+        "reviewTitle": "Assessment review",
+        "answered": "Answered",
+        "unanswered": "Unanswered",
+        "submitConfirm": "Submit now",
+        "mustAnswerAll": "You must answer all questions before submitting",
+        "answerCurrent": "Answer the current question before continuing",
+        "next": "Next",
+        "previous": "Previous",
+        "questions": "questions",
+        "progress": "Question",
+        "of": "of",
+        "noQuestionSelected": "Question not available",
       "saveResultError": "Error saving result",
       "notActive": "This test is not active",
       "saveLessonFirst": "You must save the lesson first",

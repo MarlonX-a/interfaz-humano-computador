@@ -4,11 +4,12 @@ import { supabase } from "../lib/supabaseClient";
 import { getProfile } from "../lib/data/profiles";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
+import { parseId } from '../lib/parseId';
 
 export default function ContenidoPage() {
   const { t, i18n } = useTranslation();
   const params = useParams();
-  const contentId = Number(params.contentId);
+  const contentId = parseId(params.contentId as string | undefined);
   const [content, setContent] = useState<any | null>(null);
   // content-only page: each content shows the lesson it is linked to
   const [lesson, setLesson] = useState<any | null>(null);
@@ -41,7 +42,7 @@ export default function ContenidoPage() {
             return;
           }
         }
-        if (!contentId) return;
+        if (contentId == null) return;
         await fetchContent(contentId);
       } finally {
         setCheckingAuth(false);

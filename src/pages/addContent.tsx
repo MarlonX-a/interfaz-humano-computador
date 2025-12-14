@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import type { Leccion } from "../types/db"; // asegúrate de haber creado src/types/db.ts
 import CreateLessonModal from "../components/CreateLessonModal";
 import HelpModal from "../components/HelpModal";
+import { parseId } from '../lib/parseId';
 
 interface RecordType {
   id?: number;
@@ -121,7 +122,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
     const params = new URLSearchParams(window.location.search);
     const lessonIdParam = params.get("lessonId");
     if (lessonIdParam) {
-      setForm((s) => ({ ...s, leccion_id: Number(lessonIdParam) }));
+      setForm((s) => ({ ...s, leccion_id: parseId(lessonIdParam) ?? undefined }));
     }
   }, []);
 
@@ -131,7 +132,9 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
     const contentId = params.get('contentId');
     if (contentId) {
       (async () => {
-        const { data, error } = await supabase.from('contenido').select('id,leccion_id,titulo,texto_html,type,author,difficulty,tags,resources,orden').eq('id', Number(contentId)).single();
+        const contentNum = parseId(contentId);
+        if (contentNum == null) return;
+        const { data, error } = await supabase.from('contenido').select('id,leccion_id,titulo,texto_html,type,author,difficulty,tags,resources,orden').eq('id', contentNum).single();
         if (!error && data) {
           editRecord({
             id: data.id,
@@ -612,7 +615,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
                   className={inputClass}
                   value={form.leccion_id ?? ""}
                   onChange={(e) =>
-                    setForm((f) => ({ ...f, leccion_id: e.target.value ? Number(e.target.value) : undefined }))
+                    setForm((f) => ({ ...f, leccion_id: e.target.value ? parseId(e.target.value) ?? undefined : undefined }))
                   }
                 >
                   <option value="">{t("addcontent.form.selectLesson") ?? "Selecciona una lección"}</option>

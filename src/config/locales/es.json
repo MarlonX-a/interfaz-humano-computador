@@ -221,9 +221,23 @@
     "title": "Lecciones",
     "noRecords": "No hay lecciones",
     "loadError": "Error al cargar lecciones",
+    "back": "Volver a lecciones",
+    "invalidId": "ID de lección inválido",
+    "notFound": "Lección no encontrada",
+    "markComplete": "Marcar como completada",
+    "markedCompleted": "Lección marcada como completada",
+    "completed": "Completada",
     "card": {
       "viewClass": "Ver clase",
-      "noThumbnail": "Sin thumbnail"
+      "noThumbnail": "Sin thumbnail",
+      "continue": "Continuar",
+      "complete": "Completada"
+    }
+    ,
+    "status": {
+      "completed": "Completada — revisa recursos y resultados",
+      "inProgress": "En progreso — puntaje actual {{score}}%",
+      "notStarted": "No iniciada — comienza la lección para avanzar"
     }
   },
   "contents.loadLessonsError": "Error al cargar lecciones",
@@ -427,6 +441,7 @@
       "preguntas": "Preguntas",
       "addPregunta": "Agregar Pregunta",
       "noPreguntas": "No hay preguntas. Agrega al menos una.",
+      "noQuestions": "Esta prueba no tiene preguntas",
       "pregunta": "Pregunta",
       "preguntaTexto": "Texto de la pregunta",
       "tipoPregunta": "Tipo",
@@ -459,6 +474,20 @@
       "correctAnswer": "Respuesta correcta",
       "submit": "Enviar Prueba",
       "confirmSubmitIncomplete": "No has respondido todas las preguntas. ¿Deseas enviar de todas formas?",
+      "finish": "Finalizar evaluación",
+      "reviewBeforeSubmit": "Revisar antes de enviar",
+      "reviewTitle": "Revisión de la evaluación",
+      "answered": "Respondida",
+      "unanswered": "Sin responder",
+      "submitConfirm": "Enviar ahora",
+      "mustAnswerAll": "Debes responder todas las preguntas antes de enviar",
+      "answerCurrent": "Responde la pregunta antes de continuar",
+      "next": "Siguiente",
+      "previous": "Anterior",
+      "questions": "preguntas",
+      "progress": "Pregunta",
+      "of": "de",
+      "noQuestionSelected": "Pregunta no disponible",
       "saveResultError": "Error al guardar resultado",
       "notActive": "Esta prueba no está activa",
       "saveLessonFirst": "Debes guardar la lección primero",

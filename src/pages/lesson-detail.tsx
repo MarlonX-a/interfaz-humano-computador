@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { getProfile } from '../lib/data/profiles';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { listPruebasByLeccion } from '../lib/data/pruebas';
-import { listContenidosByTeacher } from '../lib/data/contenidos';
-import type { Leccion, Prueba, ContenidoConLecciones } from '../types/db';
+import { getProgresoByUsuarioAndLeccion, upsertProgresoLastAccess } from '../lib/data/progresos';
+import { listModelosByLeccion } from '../lib/data/modelos';
+import { parseId } from '../lib/parseId';
+import type { Leccion, Prueba, ContenidoConLecciones, Progreso, ModeloRA, Contenido, ContenidoLeccion } from '../types/db';
 import { BookOpenText, Clock, Target, Play, ArrowLeft, Plus } from 'lucide-react';
 import TakePruebaModal from '../components/TakePruebaModal';
 import EditPruebaModal from '../components/EditPruebaModal';
+import ModelViewerModal from '../components/ModelViewerModal';
 
 export default function LessonDetailPage() {
   const { t } = useTranslation();
@@ -24,38 +27,13 @@ export default function LessonDetailPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [editingPruebaId, setEditingPruebaId] = useState<number | null>(null);
+  const [progreso, setProgreso] = useState<Progreso | null>(null);
+  const [modelos, setModelos] = useState<ModeloRA[]>([]);
+  const contentRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
+  const [selectedModel, setSelectedModel] = useState<ModeloRA | null>(null);
+  const lessonNum = parseId(lessonId);
 
-  useEffect(() => {
-    const ensure = async () => {
-      setCheckingAuth(true);
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user?.id) {
-          navigate('/login');
-          return;
-        }
-        const { data: profile } = await getProfile(session.user.id);
-        const role = profile?.role || session.user.user_metadata?.role || null;
-        if (!['student', 'teacher', 'admin'].includes(role)) {
-          navigate('/login');
-          return;
-        }
-        setUserRole(role);
-        setUserId(session.user.id);
-        if (lessonId) {
-          await loadLesson(Number(lessonId));
-        }
-      } catch (error: any) {
-        console.error('Error in ensure:', error);
-        toast.error(error?.message || t('lessons.loadError') || 'Error al cargar lección');
-      } finally {
-        setCheckingAuth(false);
-      }
-    };
-    ensure();
-  }, [lessonId, navigate, t]);
-
-  const loadLesson = async (id: number) => {
+  const loadLesson = useCallback(async (id: number) => {
     setLoading(true);
     try {
       // Cargar lección
@@ -88,15 +66,15 @@ export default function LessonDetailPage() {
 
         // Cargar lecciones para cada contenido
         const contenidosConLecciones = await Promise.all(
-          (contenidosData || []).map(async (c) => {
+          (contenidosData || []).map(async (c: Contenido) => {
             const { data: clData } = await supabase
               .from('contenido_leccion')
               .select('leccion_id, orden')
               .eq('contenido_id', c.id)
               .order('orden', { ascending: true });
 
-            const leccionIds = (clData || []).map((cl) => cl.leccion_id);
-            let lecciones: any[] = [];
+            const leccionIds = (clData as ContenidoLeccion[] | null || []).map((cl) => cl.leccion_id);
+            let lecciones: Leccion[] = [];
             if (leccionIds.length > 0) {
               const { data: leccionesData } = await supabase
                 .from('leccion')
@@ -114,20 +92,125 @@ export default function LessonDetailPage() {
       // Cargar pruebas activas de esta lección
       const pruebasData = await listPruebasByLeccion(id);
       setPruebas(pruebasData.filter((p) => p.activa));
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading lesson:', error);
-      toast.error(error?.message || t('lessons.loadError') || 'Error al cargar lección');
+      toast.error(t('lessons.loadError', { defaultValue: 'Error al cargar lección' }));
     } finally {
       setLoading(false);
     }
+  }, [t]);
+
+  useEffect(() => {
+    const ensure = async () => {
+      setCheckingAuth(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user?.id) {
+          navigate('/login');
+          return;
+        }
+        const { data: profile } = await getProfile(session.user.id);
+        const role = profile?.role || session.user.user_metadata?.role || null;
+        if (!['student', 'teacher', 'admin'].includes(role)) {
+          navigate('/login');
+          return;
+        }
+        setUserRole(role);
+        setUserId(session.user.id);
+        if (lessonId) {
+          const id = parseId(lessonId);
+          if (id === null) {
+            toast.error(t('lessons.invalidId', { defaultValue: 'ID de lección inválido' }));
+            setCheckingAuth(false);
+            return;
+          }
+          await loadLesson(id);
+          // cargar progreso y modelos después de cargar la lección
+          try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user?.id) {
+              const p = await getProgresoByUsuarioAndLeccion(session.user.id, id);
+              setProgreso(p);
+              // upsert ultimo acceso inmediato (safe helper)
+              try {
+                await upsertProgresoLastAccess(session.user.id, id, { fecha_ultimo_acceso: new Date().toISOString() });
+              } catch {
+                // ignore
+              }
+            }
+          } catch {
+            // ignore
+          }
+          try {
+            const mods = await listModelosByLeccion(id);
+            setModelos(mods || []);
+          } catch {
+            // ignore
+          }
+        }
+      } catch (error) {
+        console.error('Error in ensure:', error);
+        toast.error(t('lessons.loadError', { defaultValue: 'Error al cargar lección' }));
+      } finally {
+        setCheckingAuth(false);
+      }
+    };
+    ensure();
+  }, [lessonId, navigate, t, loadLesson]);
+
+  // Autosave last access cada 30s
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    if (!userId || !leccion) return;
+    timer = setInterval(async () => {
+      try {
+        await upsertProgresoLastAccess(userId, leccion.id, { fecha_ultimo_acceso: new Date().toISOString() });
+      } catch {
+        // ignore
+      }
+    }, 30000);
+    return () => { if (timer) clearInterval(timer); };
+  }, [userId, leccion]);
+
+  const marcarCompletada = async () => {
+    if (!userId || !leccion) return;
+    try {
+      await upsertProgresoLastAccess(userId, leccion.id, { completado: true, fecha_ultimo_acceso: new Date().toISOString() });
+      setProgreso((prev) => ({ ...(prev as Progreso), completado: true }));
+      toast.success(t('lessons.markedCompleted', { defaultValue: 'Lección marcada como completada' }));
+    } catch (e) {
+      console.error('Error marking completed', e);
+      toast.error(String(e) || 'Error al marcar completada');
+    }
   };
+
+  const openEvaluation = () => {
+    if (pruebas && pruebas.length > 0) {
+      setTakingPruebaId(pruebas[0].id);
+    } else {
+      toast(t('lesson.noPruebas', { defaultValue: 'No hay pruebas disponibles para esta lección' }));
+    }
+  };
+
+  const goNext = () => {
+    // Navegar al primer contenido o abrir evaluación
+    if (contenidos.length > 0) {
+      const first = contenidos[0];
+      const el = contentRefs.current.get(first.id);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    openEvaluation();
+  };
+
+  
 
   if (checkingAuth) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">{t('loading') || 'Cargando...'}</p>
+          <p className="text-gray-600">{t('loading', { defaultValue: 'Cargando...' })}</p>
         </div>
       </div>
     );
@@ -137,12 +220,12 @@ export default function LessonDetailPage() {
     return (
       <div className="max-w-4xl mx-auto p-4">
         <div className="text-center py-12">
-          <p className="text-gray-600">{t('lessons.notFound') || 'Lección no encontrada'}</p>
+          <p className="text-gray-600">{t('lessons.notFound', { defaultValue: 'Lección no encontrada' })}</p>
           <button
             onClick={() => navigate('/lessons')}
             className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            {t('lessons.back') || 'Volver a lecciones'}
+            {t('lessons.back', { defaultValue: 'Volver a lecciones' })}
           </button>
         </div>
       </div>
@@ -151,6 +234,11 @@ export default function LessonDetailPage() {
 
   return (
     <main className="max-w-6xl mx-auto p-4 sm:p-6">
+      {loading && (
+        <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
       {/* Header */}
       <div className="mb-6">
         <button
@@ -158,7 +246,7 @@ export default function LessonDetailPage() {
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
         >
           <ArrowLeft size={18} />
-          <span>{t('lessons.back') || 'Volver a lecciones'}</span>
+          <span>{t('lessons.back', { defaultValue: 'Volver a lecciones' })}</span>
         </button>
         <div className="flex items-start gap-4">
           {leccion.thumbnail_url && (
@@ -178,6 +266,25 @@ export default function LessonDetailPage() {
                 {leccion.nivel}
               </span>
             )}
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                onClick={goNext}
+                className="px-3 py-2 bg-gray-100 text-gray-800 rounded hover:bg-gray-200"
+              >
+                {t('lesson.next', { defaultValue: 'Ir al siguiente contenido' })}
+              </button>
+              <button
+                onClick={marcarCompletada}
+                className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                {t('lessons.markComplete', { defaultValue: 'Marcar como completada' })}
+              </button>
+              {progreso?.completado && (
+                <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-sm rounded-full">
+                  {t('lessons.completed', { defaultValue: 'Completada' })}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -186,12 +293,13 @@ export default function LessonDetailPage() {
       {contenidos.length > 0 && (
         <section className="mb-8">
           <h2 className="text-2xl font-semibold text-gray-900 mb-4">
-            {t('lesson.contents') || 'Contenidos'}
+            {t('lesson.contents', { defaultValue: 'Contenidos' })}
           </h2>
           <div className="space-y-4">
             {contenidos.map((contenido) => (
               <div
                 key={contenido.id}
+                ref={(el) => { contentRefs.current.set(contenido.id, el); }}
                 className="bg-white rounded-lg shadow p-6 border border-gray-200"
               >
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">{contenido.titulo}</h3>
@@ -204,7 +312,7 @@ export default function LessonDetailPage() {
                 {contenido.lecciones && contenido.lecciones.length > 0 && (
                   <div className="mt-4 pt-4 border-t">
                     <p className="text-sm font-medium text-gray-700 mb-2">
-                      {t('lesson.relatedLessons') || 'Lecciones relacionadas'}:
+                      {t('lesson.relatedLessons', { defaultValue: 'Lecciones relacionadas' })}:
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {contenido.lecciones.map((l) => (
@@ -228,7 +336,7 @@ export default function LessonDetailPage() {
       <section className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-semibold text-gray-900">
-            {t('lesson.pruebas') || 'Pruebas'}
+            {t('lesson.pruebas', { defaultValue: 'Pruebas' })}
           </h2>
           {(userRole === 'teacher' || userRole === 'admin') && lessonId && (
             <button
@@ -236,7 +344,7 @@ export default function LessonDetailPage() {
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
             >
               <Plus size={18} />
-              <span>{t('teacher.pruebas.newPrueba') || 'Nueva Prueba'}</span>
+                <span>{t('teacher.pruebas.newPrueba', { defaultValue: 'Nueva Prueba' })}</span>
             </button>
           )}
         </div>
@@ -270,7 +378,7 @@ export default function LessonDetailPage() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Play size={18} />
-                  <span>{t('lesson.takePrueba') || 'Tomar Prueba'}</span>
+                  <span>{t('lesson.takePrueba', { defaultValue: 'Tomar Prueba' })}</span>
                 </button>
               </div>
             ))}
@@ -279,7 +387,7 @@ export default function LessonDetailPage() {
           <div className="bg-white rounded-lg shadow p-8 text-center border border-gray-200">
             <BookOpenText size={48} className="mx-auto text-gray-400 mb-4" />
             <p className="text-gray-600 mb-4">
-              {t('lesson.noPruebas') || 'Esta lección aún no tiene pruebas'}
+              {t('lesson.noPruebas', { defaultValue: 'Esta lección aún no tiene pruebas' })}
             </p>
             {(userRole === 'teacher' || userRole === 'admin') && lessonId && (
               <button
@@ -287,18 +395,54 @@ export default function LessonDetailPage() {
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Plus size={18} />
-                <span>{t('teacher.pruebas.createFirst') || 'Crear primera prueba'}</span>
+                <span>{t('teacher.pruebas.createFirst', { defaultValue: 'Crear primera prueba' })}</span>
               </button>
             )}
           </div>
         )}
       </section>
 
+      {modelos.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t('lesson.models', { defaultValue: 'Modelos RA' })}</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {modelos.map((m) => (
+              <div key={m.id} className="bg-white rounded-lg shadow p-4 border border-gray-200">
+                <h3 className="font-semibold text-gray-900 mb-1">{m.nombre_modelo}</h3>
+                {m.descripcion && <p className="text-sm text-gray-600 mb-2">{m.descripcion}</p>}
+                {/* Open viewer for GLTF/GLB, otherwise open link */}
+                {/(\.glb|\.gltf)$/i.test(m.archivo_url) ? (
+                  <button
+                    onClick={() => setSelectedModel(m)}
+                    className="text-blue-600 underline bg-transparent"
+                  >
+                    {t('lesson.openModel', { defaultValue: 'Abrir modelo' })}
+                  </button>
+                ) : (
+                  <a href={m.archivo_url} target="_blank" rel="noreferrer" className="text-blue-600 underline">
+                    {t('lesson.openModel', { defaultValue: 'Abrir modelo' })}
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {selectedModel && (
+        <ModelViewerModal
+          open={!!selectedModel}
+          onClose={() => setSelectedModel(null)}
+          url={selectedModel.archivo_url}
+          title={selectedModel.nombre_modelo}
+        />
+      )}
+
       {contenidos.length === 0 && pruebas.length === 0 && (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <BookOpenText size={48} className="mx-auto text-gray-400 mb-4" />
           <p className="text-gray-600 mb-4">
-            {t('lesson.noContent') || 'Esta lección aún no tiene contenidos ni pruebas'}
+            {t('lesson.noContent', { defaultValue: 'Esta lección aún no tiene contenidos ni pruebas' })}
           </p>
           {(userRole === 'teacher' || userRole === 'admin') && lessonId && (
             <button
@@ -306,19 +450,19 @@ export default function LessonDetailPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus size={18} />
-              <span>{t('teacher.pruebas.createFirst') || 'Crear primera prueba'}</span>
+                <span>{t('teacher.pruebas.createFirst', { defaultValue: 'Crear primera prueba' })}</span>
             </button>
           )}
         </div>
       )}
 
       {/* Modal de tomar prueba */}
-      {takingPruebaId && lessonId && (
+      {takingPruebaId && lessonNum != null && (
         <TakePruebaModal
           open={!!takingPruebaId}
           onClose={() => setTakingPruebaId(null)}
           pruebaId={takingPruebaId}
-          leccionId={Number(lessonId)}
+          leccionId={lessonNum}
         />
       )}
 
@@ -330,12 +474,13 @@ export default function LessonDetailPage() {
           pruebaId={editingPruebaId === 0 ? null : editingPruebaId}
           onUpdated={async () => {
             // Recargar pruebas
-            const pruebasData = await listPruebasByLeccion(Number(lessonId));
+            if (lessonNum == null) return;
+            const pruebasData = await listPruebasByLeccion(lessonNum);
             setPruebas(pruebasData.filter((p) => p.activa));
             setEditingPruebaId(null);
           }}
           userId={userId}
-          defaultLeccionId={Number(lessonId)}
+          defaultLeccionId={lessonNum ?? undefined}
         />
       )}
     </main>

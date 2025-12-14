@@ -31,8 +31,10 @@ import TeacherPerformance from "./pages/teacher/performance";
 import ContenidoPage from "./pages/contenido";
 import LessonsPage from "./pages/lessons";
 import LessonDetailPage from "./pages/lesson-detail";
+import PruebaPage from './pages/prueba';
 import AdminUsers from "./pages/admin/users";
 import AdminDashboard from "./pages/admin/dashboard";
+import StudentDashboard from './pages/student/dashboard';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
@@ -202,6 +204,7 @@ function App() {
               <Route path="/contenido/:contentId" element={<ContenidoPage />} />
               <Route path="/lessons" element={<LessonsPage />} />
               <Route path="/lesson/:lessonId" element={<LessonDetailPage />} />
+              <Route path="/lesson/:lessonId/prueba/:pruebaId" element={<PruebaPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/teacher" element={<TeacherDashboard />} />
               <Route path="/teacher/lessons" element={<TeacherLessons />} />
@@ -211,6 +214,7 @@ function App() {
               <Route path="/teacher/performance" element={<TeacherPerformance />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/student/dashboard" element={<StudentDashboard />} />
               {/* accessibility route removed; toggles are available in sidebar */}
             </Routes>
             <Toaster />
