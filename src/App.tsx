@@ -34,6 +34,7 @@ import LessonDetailPage from "./pages/lesson-detail";
 import PruebaPage from './pages/prueba';
 import AdminUsers from "./pages/admin/users";
 import AdminDashboard from "./pages/admin/dashboard";
+import AdminModelos from "./pages/admin/modelos";
 import StudentDashboard from './pages/student/dashboard';
 
 function App() {
@@ -214,6 +215,7 @@ function App() {
               <Route path="/teacher/performance" element={<TeacherPerformance />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/modelos" element={<AdminModelos />} />
               <Route path="/student/dashboard" element={<StudentDashboard />} />
               {/* accessibility route removed; toggles are available in sidebar */}
             </Routes>

@@ -394,6 +394,68 @@
           "openModel": "Open model"
         }
       }
+    },
+    "modelos": {
+      "title": "AR Models Management",
+      "subtitle": "Manage Augmented Reality models on the platform",
+      "search": "Search by name or description...",
+      "create": "New Model",
+      "errorLoading": "Error loading models",
+      "table": {
+        "name": "Name",
+        "type": "Type",
+        "lesson": "Lesson",
+        "description": "Description",
+        "createdBy": "Created by",
+        "actions": "Actions",
+        "noModels": "No models registered yet",
+        "showing": "Showing",
+        "of": "of",
+        "models": "models"
+      },
+      "filters": {
+        "allTypes": "All types"
+      },
+      "actions": {
+        "view": "View",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "success": {
+        "created": "Model created successfully",
+        "updated": "Model updated successfully",
+        "deleted": "Model deleted successfully"
+      },
+      "errors": {
+        "loadError": "Error loading models",
+        "createError": "Error creating model",
+        "updateError": "Error updating model",
+        "deleteError": "Error deleting model"
+      },
+      "modal": {
+        "createTitle": "Create New Model",
+        "editTitle": "Edit Model",
+        "viewTitle": "Model Details",
+        "nameLabel": "Model Name",
+        "descriptionLabel": "Description",
+        "typeLabel": "Type",
+        "lessonLabel": "Lesson",
+        "fileLabel": "File",
+        "fileHint": "Click or drag a file",
+        "fileUploading": "Uploading...",
+        "fileUploaded": "✓ File uploaded",
+        "fileChange": "Change",
+        "cancel": "Cancel",
+        "create": "Create Model",
+        "save": "Save Changes",
+        "saving": "Saving...",
+        "creating": "Creating...",
+        "close": "Close",
+        "nameRequired": "Name is required",
+        "fileRequired": "You must upload a file",
+        "uploadSuccess": "File uploaded successfully",
+        "uploadError": "Error uploading file"
+      }
     }
   },
   "teacher": {
@@ -871,6 +933,68 @@
         "performanceDesc": "View all students performance",
         "addContent": "Add Content",
         "addContentDesc": "Create new content or lesson"
+      }
+    },
+    "modelos": {
+      "title": "AR Models Management",
+      "subtitle": "Manage Augmented Reality models on the platform",
+      "search": "Search by name or description...",
+      "create": "New Model",
+      "errorLoading": "Error loading models",
+      "table": {
+        "name": "Name",
+        "type": "Type",
+        "lesson": "Lesson",
+        "description": "Description",
+        "createdBy": "Created by",
+        "actions": "Actions",
+        "noModels": "No models registered yet",
+        "showing": "Showing",
+        "of": "of",
+        "models": "models"
+      },
+      "filters": {
+        "allTypes": "All types"
+      },
+      "actions": {
+        "view": "View",
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "success": {
+        "created": "Model created successfully",
+        "updated": "Model updated successfully",
+        "deleted": "Model deleted successfully"
+      },
+      "errors": {
+        "loadError": "Error loading models",
+        "createError": "Error creating model",
+        "updateError": "Error updating model",
+        "deleteError": "Error deleting model"
+      },
+      "modal": {
+        "createTitle": "Create New Model",
+        "editTitle": "Edit Model",
+        "viewTitle": "Model Details",
+        "nameLabel": "Model Name",
+        "descriptionLabel": "Description",
+        "typeLabel": "Type",
+        "lessonLabel": "Lesson",
+        "fileLabel": "File",
+        "fileHint": "Click or drag a file",
+        "fileUploading": "Uploading...",
+        "fileUploaded": "✓ File uploaded",
+        "fileChange": "Change",
+        "cancel": "Cancel",
+        "create": "Create Model",
+        "save": "Save Changes",
+        "saving": "Saving...",
+        "creating": "Creating...",
+        "close": "Close",
+        "nameRequired": "Name is required",
+        "fileRequired": "You must upload a file",
+        "uploadSuccess": "File uploaded successfully",
+        "uploadError": "Error uploading file"
       }
     }
   }

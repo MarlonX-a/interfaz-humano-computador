@@ -15,6 +15,7 @@ import {
   Plus,
   X,
   LayoutDashboard,
+  Box,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from 'react-hot-toast';
@@ -573,6 +574,15 @@ const Sidebar: FC<SidebarProps> = ({
               className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
             >
               <PersonStanding size={16} /> <span>{t('admin.users.title') || 'Gestión de Usuarios'}</span>
+            </button>
+          )}
+          {/* Gestión de Modelos RA - solo admin */}
+          {profile && profile.role === "admin" && (
+            <button
+              onClick={() => navigate("/admin/modelos")}
+              className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left"
+            >
+              <Box size={16} /> <span>{t('admin.modelos.title') || 'Modelos RA'}</span>
             </button>
           )}
         </nav>
