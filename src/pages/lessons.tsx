@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useLocation } from 'react-router-dom';
 import { supabase } from "../lib/supabaseClient";
 import { getProfile } from '../lib/data/profiles';
-import { getProgresosByUsuario } from '../lib/data/progresos';
+import { getProgresosByUsuario, getCompletionPercentsForUser } from '../lib/data/progresos';
+import { getEstadisticasProgresoLeccion } from '../lib/data/progresoSecciones';
 import { parseId } from '../lib/parseId';
 import type { Leccion, Progreso } from '../types/db';
 import { useTranslation } from "react-i18next";
@@ -44,10 +45,10 @@ export default function LessonsPage() {
           if (!allowed2.includes(role2)) { navigate('/login'); return; }
         }
         // reuse same session value declared above
-        await fetchLessons(lidNum ?? null, cidNum ?? null);
+        const fetched = await fetchLessons(lidNum ?? null, cidNum ?? null);
         // fetchProgresos returns an object with { channel, lastVisitedId }
         // assign channel for cleanup and navigate to last visited if appropriate
-        const resultado = await fetchProgresos(session.user.id);
+        const resultado = await fetchProgresos(session.user.id, fetched ?? undefined);
         if (resultado) {
           progressChannel = resultado.channel ?? null;
           const lv = resultado.lastVisited;
@@ -60,6 +61,37 @@ export default function LessonsPage() {
           if (!lid && lvId) {
             // No redirigir automáticamente: solo guardamos el id para resaltar y permitir "Continuar" manual
             // La UI mostrará el último visitado (lastVisitedId) y el usuario podrá hacer click en "Continuar"
+          }
+        }
+
+        // Si la URL contiene ?lessonId=... pedimos las estadísticas exactas para esa lección
+        // y sobreescribimos el porcentaje en la vista general para garantizar consistencia
+        if (lidNum) {
+          try {
+            const stats = await getEstadisticasProgresoLeccion(session.user.id, lidNum);
+            const pct = stats?.porcentajeCompletado ?? null;
+            if (pct !== null) {
+              setProgresos((prev) => {
+                const copy = { ...prev };
+                const existing = copy[lidNum];
+                if (existing) {
+                  existing.puntaje = pct;
+                  existing.completado = pct === 100;
+                } else {
+                  copy[lidNum] = {
+                    id: 0,
+                    usuario_id: session.user.id,
+                    leccion_id: lidNum,
+                    completado: pct === 100,
+                    fecha_ultimo_acceso: null,
+                    puntaje: pct,
+                  } as Progreso;
+                }
+                return copy;
+              });
+            }
+          } catch (err) {
+            console.warn('Error fetching single-lesson stats', err);
           }
         }
       } finally {
@@ -94,7 +126,7 @@ export default function LessonsPage() {
         const leccionIds = (mappings || []).map((m: any) => m.leccion_id).filter(Boolean);
         if (leccionIds.length === 0) {
           setLessons([]);
-          return;
+          return [] as LessonView[];
         }
         const { data: lessonsData, error: lessonsErr } = await supabase
           .from('leccion')
@@ -105,7 +137,7 @@ export default function LessonsPage() {
         const lessonsById = (lessonsData || []).reduce((acc: any, l: any) => { acc[l.id] = l; return acc; }, {} as Record<number, any>);
         const ordered = leccionIds.map((id: number) => lessonsById[id]).filter(Boolean);
         setLessons(ordered);
-        return;
+        return ordered as LessonView[];
       }
 
       const query = supabase
@@ -116,17 +148,19 @@ export default function LessonsPage() {
       if (error) {
         console.error("Error fetching lessons", error);
         toast.error(t("lessons.loadError", { defaultValue: "Error loading lessons" }));
-        return;
+        return [] as LessonView[];
       }
       // If onlyId passed, ensure only the specific lesson is shown
       setLessons((data || []));
+      return (data || []) as LessonView[];
     } catch (err) {
       console.error('Error fetching lessons for content:', err);
       toast.error(t('lessons.loadError', { defaultValue: 'Error loading lessons' }));
+      return [] as LessonView[];
     }
   };
 
-  const fetchProgresos = async (usuarioId: string) => {
+  const fetchProgresos = async (usuarioId: string, lessonList?: LessonView[]) => {
     try {
       const arr = await getProgresosByUsuario(usuarioId);
       const map: Record<number, Progreso | undefined> = {};
@@ -139,6 +173,30 @@ export default function LessonsPage() {
           }
         }
       });
+
+      // Calcular porcentajes a partir de secciones para las lecciones que mostramos
+      try {
+        const lessonIds = (lessonList && lessonList.length > 0) ? lessonList.map((l) => l.id) : lessons.map((l) => l.id);
+        if (lessonIds.length > 0) {
+          const computedMap = await getCompletionPercentsForUser(usuarioId, lessonIds);
+          // Merge computed percent into progresos map (override puntaje si existe el computado)
+          lessonIds.forEach((lid) => {
+            const computed = computedMap[lid];
+            const existing = map[lid];
+            if (computed !== undefined) {
+              if (existing) {
+                existing.puntaje = computed;
+                existing.completado = computed === 100;
+              } else {
+                map[lid] = { id: 0, usuario_id: usuarioId, leccion_id: lid, completado: computed === 100, fecha_ultimo_acceso: null, puntaje: computed } as Progreso;
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.warn('Error computing per-lesson percents', err);
+      }
+
       setProgresos(map);
       const lastVisitedIdVal = lastVisited ? (lastVisited as { id: number }).id : null;
       setLastVisitedId(lastVisitedIdVal ?? null);
@@ -218,12 +276,17 @@ export default function LessonsPage() {
 
               {/* Progress bar */}
               <div className="mt-3">
-                <div className="text-xs font-medium mb-1 flex items-center justify-between">
-                  <span className="text-gray-700">{status}</span>
-                  <span className="text-gray-500">{progressPercent}%</span>
+                <div className="mb-1 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-700 text-xs">{status}</span>
+                    <span className="text-sm font-semibold text-blue-700">{progressPercent}%</span>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 h-2 rounded overflow-hidden">
-                  <div className="h-full bg-blue-500" style={{ width: `${progressPercent}%` }} />
+                <div className="w-full bg-gray-200 h-4 rounded overflow-hidden relative">
+                  <div className="h-full bg-blue-500 transition-width" style={{ width: `${progressPercent}%` }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent} />
+                  {progressPercent >= 10 && (
+                    <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold text-white pointer-events-none">{progressPercent}%</div>
+                  )}
                 </div>
               </div>
 

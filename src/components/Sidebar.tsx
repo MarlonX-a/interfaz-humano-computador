@@ -383,23 +383,23 @@ const Sidebar: FC<SidebarProps> = ({
 
           {openMenus.aprende && (
             <div className="ml-6 mt-1 flex flex-col space-y-1">
-              <button onClick={() => navigate('/molecules')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+              <button onClick={() => navigate('/contents?type=molecule')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <Atom size={16} /> <span>{t("molecules")}</span>
               </button>
-              <button onClick={() => navigate('/atoms')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+              <button onClick={() => navigate('/contents?type=atom')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <FlaskRound size={16} /> <span>{t("atoms")}</span>
               </button>
-              <button onClick={() => navigate('/periodic-table')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+              <button onClick={() => navigate('/contents?type=periodic-table')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <FlaskConical size={16} /> <span>{t("periodicTable")}</span>
               </button>
               <button onClick={() => navigate('/lessons')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <BookOpenText size={16} /> <span>{t("lessons.title")}</span>
               </button>
-              <button onClick={() => navigate('/chemical-reactions')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+              <button onClick={() => navigate('/contents?type=chemical-reaction')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <FlaskConical size={16} /> <span>{t("chemicalReactions")}</span>
               </button>
               
-              <button onClick={() => navigate('/articles')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+              <button onClick={() => navigate('/contents?type=article')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
                 <BookOpenText size={16} /> <span>{t("article")}</span>
               </button>
             </div>
@@ -410,7 +410,7 @@ const Sidebar: FC<SidebarProps> = ({
             <BookOpenText size={18} /> <span>{t('contents.title')}</span>
           </button>
           {/* Experimentos */}
-          <button onClick={() => navigate('/experiments')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
+          <button onClick={() => navigate('/contents?type=experiment')} className="flex items-center space-x-2 p-2 rounded hover:bg-blue-800 transition text-left">
             <FlaskConical size={16} /> <span>{t("experiments")}</span>
           </button>
 

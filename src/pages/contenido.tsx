@@ -17,39 +17,18 @@ export default function ContenidoPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const ensureAuthAndLoad = async () => {
+    const ensureLoad = async () => {
       setCheckingAuth(true);
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session?.user?.id) {
-          navigate('/login');
-          return;
-        }
-        // Check role via profile; fallback to token metadata
-        try {
-          const { data: profile } = await getProfile(session.user.id);
-          const role = profile?.role || session.user.user_metadata?.role || null;
-          const allowed = ['student', 'teacher', 'admin'];
-          if (!allowed.includes(role)) {
-            navigate('/login');
-            return;
-          }
-        } catch (err) {
-          const role2 = session.user.user_metadata?.role || null;
-          const allowed2 = ['student', 'teacher', 'admin'];
-          if (!allowed2.includes(role2)) {
-            navigate('/login');
-            return;
-          }
-        }
+        // Allow viewing content without authentication
         if (contentId == null) return;
         await fetchContent(contentId);
       } finally {
         setCheckingAuth(false);
       }
     };
-    ensureAuthAndLoad();
-  }, [contentId, navigate]);
+    ensureLoad();
+  }, [contentId]);
 
   const fetchContent = async (id: number) => {
     const { data, error } = await supabase
@@ -84,6 +63,39 @@ export default function ContenidoPage() {
     }
   };
 
+  // Auth-guarded navigation helpers: redirect to login if not signed in
+  const viewLesson = async (lessonId: number) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        navigate(`/lessons?lessonId=${lessonId}`);
+      } else {
+        toast.error(t('login.required', { defaultValue: 'Necesitas iniciar sesión para ver la lección' }));
+        navigate(`/login?next=${encodeURIComponent(`/lessons?lessonId=${lessonId}`)}`);
+      }
+    } catch (err) {
+      console.error('Error checking session before navigating to lesson', err);
+      toast.error(t('login.required', { defaultValue: 'Necesitas iniciar sesión para ver la lección' }));
+      navigate(`/login?next=${encodeURIComponent(`/lessons?lessonId=${lessonId}`)}`);
+    }
+  };
+
+  const viewAllLessons = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        navigate('/lessons');
+      } else {
+        toast.error(t('login.required', { defaultValue: 'Necesitas iniciar sesión para ver las lecciones' }));
+        navigate(`/login?next=${encodeURIComponent('/lessons')}`);
+      }
+    } catch (err) {
+      console.error('Error checking session before navigating to lessons', err);
+      toast.error(t('login.required', { defaultValue: 'Necesitas iniciar sesión para ver las lecciones' }));
+      navigate(`/login?next=${encodeURIComponent('/lessons')}`);
+    }
+  };
+
   return (
     <main className="max-w-4xl mx-auto p-4">
       {checkingAuth && (
@@ -114,9 +126,9 @@ export default function ContenidoPage() {
         </div>
         <div className="flex gap-2 items-center">
           {content?.leccion_id && (
-            <Link to={`/lessons?lessonId=${content.leccion_id}`} className="px-3 py-1 rounded bg-gray-200 text-gray-800 text-sm">{t('lessons.title', { defaultValue: i18n.language === 'es' ? 'Todas las clases' : 'Lessons' })}</Link>
+            <button onClick={() => viewLesson(content.leccion_id)} className="px-3 py-1 rounded bg-gray-200 text-gray-800 text-sm">{t('lessons.title', { defaultValue: i18n.language === 'es' ? 'Todas las clases' : 'Lessons' })}</button>
           )}
-          <Link to="/lessons" className="px-3 py-1 rounded bg-gray-100 text-gray-800 text-sm">{t('lessons.title', { defaultValue: i18n.language === 'es' ? 'Todas las clases' : 'Lessons' })}</Link>
+          <button onClick={() => viewAllLessons()} className="px-3 py-1 rounded bg-gray-100 text-gray-800 text-sm">{t('lessons.title', { defaultValue: i18n.language === 'es' ? 'Todas las clases' : 'Lessons' })}</button>
         </div>
       </div>
 
