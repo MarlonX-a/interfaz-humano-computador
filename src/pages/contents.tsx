@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function ContentsPage() {
   const { t, i18n } = useTranslation();
@@ -10,11 +10,14 @@ export default function ContentsPage() {
   const [contents, setContents] = useState<any[]>([]);
   const [lessonsById, setLessonsById] = useState<Record<number, any>>({});
 
+  const [searchParams] = useSearchParams();
+  const typeFilter = searchParams.get('type');
+
   useEffect(() => {
-    fetchContents();
+    fetchContents(typeFilter);
     fetchLessons();
-    console.debug('[ContentsPage] i18n language:', i18n.language, 'viewLesson:', t('contents.card.viewLesson'));
-  }, []);
+    console.debug('[ContentsPage] i18n language:', i18n.language, 'viewLesson:', t('contents.card.viewLesson'), 'typeFilter:', typeFilter);
+  }, [typeFilter]);
 
   const fetchLessons = async () => {
     const { data, error } = await supabase.from('leccion').select('id,titulo');
@@ -28,8 +31,12 @@ export default function ContentsPage() {
     setLessonsById(map);
   }
 
-  const fetchContents = async () => {
-    const { data, error } = await supabase.from('contenido').select('id,leccion_id,titulo,texto_html,type,author,difficulty,tags,resources,orden').order('orden', { ascending: true });
+  const fetchContents = async (typeFilter?: string) => {
+    let query: any = supabase.from('contenido').select('id,leccion_id,titulo,texto_html,type,author,difficulty,tags,resources,orden').order('orden', { ascending: true });
+    if (typeFilter) {
+      query = query.eq('type', typeFilter);
+    }
+    const { data, error } = await query;
     if (error) {
       console.error('Error fetching content:', error);
       toast.error(t('contents.loadRecordsError') || t('addcontent.loadRecordsError') || 'Error loading records');
@@ -68,9 +75,26 @@ export default function ContentsPage() {
     }
   }
 
+  // Open lesson with authentication check: if not signed in, redirect to login
+  const viewLesson = async (lessonId: number) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        navigate(`/lessons?lessonId=${lessonId}`);
+      } else {
+        toast.error(t('login.required', { defaultValue: 'Necesitas iniciar sesión para ver la lección' }));
+        navigate(`/login?next=${encodeURIComponent(`/lessons?lessonId=${lessonId}`)}`);
+      }
+    } catch (err) {
+      console.error('Error checking session before navigating to lesson', err);
+      toast.error(t('login.required', { defaultValue: 'Necesitas iniciar sesión para ver la lección' }));
+      navigate(`/login?next=${encodeURIComponent(`/lessons?lessonId=${lessonId}`)}`);
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">{t('contents.title')}</h1>
+      <h1 className="text-2xl font-bold mb-4">{t('contents.title')}{typeFilter ? ` — ${getTypeLabel(typeFilter)}` : ''}</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {contents.length === 0 ? (
           <div className="col-span-full text-center text-gray-500 p-6 bg-white rounded-lg shadow">{t('contents.noRecords')}</div>
@@ -90,7 +114,7 @@ export default function ContentsPage() {
               </div>
               <div className="mt-4 flex items-center gap-2 justify-end">
                 {c.leccion_id ? (
-                  <button onClick={() => navigate(`/lessons?lessonId=${c.leccion_id}`)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">{t('lessons.card.viewClass', { defaultValue: i18n.language === 'es' ? 'Ver clase' : 'View class' })}</button>
+                  <button onClick={() => viewLesson(c.leccion_id)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">{t('lessons.card.viewClass', { defaultValue: i18n.language === 'es' ? 'Ver clase' : 'View class' })}</button>
                 ) : (
                   <button onClick={() => navigate(`/add-content?contentId=${c.id}`)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">{t('contents.card.edit', { defaultValue: i18n.language === 'es' ? 'Editar contenido' : 'Edit content' })}</button>
                 )}
