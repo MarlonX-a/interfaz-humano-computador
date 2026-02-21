@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { Users, BookOpen, ClipboardCheck, BarChart3, Settings, Plus } from 'lucide-react';
+import { Users, BookOpen, ClipboardCheck, BarChart3, Settings, Plus, Box } from 'lucide-react';
 
 export default function QuickLinks() {
   const { t } = useTranslation();
@@ -14,6 +14,13 @@ export default function QuickLinks() {
       icon: Users,
       color: 'bg-blue-500',
       route: '/admin/users',
+    },
+    {
+      title: t('admin.modelos.title') || 'Modelos RA',
+      description: t('admin.modelos.subtitle') || 'Administra los modelos de Realidad Aumentada',
+      icon: Box,
+      color: 'bg-cyan-500',
+      route: '/admin/modelos',
     },
     {
       title: t('admin.dashboard.quickLinks.contents') || 'Todos los Contenidos',

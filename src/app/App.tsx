@@ -214,6 +214,7 @@ function App() {
               <Route path="/teacher/performance" element={<TeacherPerformance />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/modelos" element={<AdminModelos />} />
               <Route path="/student/dashboard" element={<StudentDashboard />} />
               {/* accessibility route removed; toggles are available in sidebar */}
             </Routes>

@@ -389,6 +389,68 @@
           }
         }
       }
+    },
+    "modelos": {
+      "title": "Gestión de Modelos RA",
+      "subtitle": "Administra los modelos de Realidad Aumentada de la plataforma",
+      "search": "Buscar por nombre o descripción...",
+      "create": "Nuevo Modelo",
+      "errorLoading": "Error al cargar modelos",
+      "table": {
+        "name": "Nombre",
+        "type": "Tipo",
+        "lesson": "Lección",
+        "description": "Descripción",
+        "createdBy": "Creado por",
+        "actions": "Acciones",
+        "noModels": "No hay modelos registrados aún",
+        "showing": "Mostrando",
+        "of": "de",
+        "models": "modelos"
+      },
+      "filters": {
+        "allTypes": "Todos los tipos"
+      },
+      "actions": {
+        "view": "Ver",
+        "edit": "Editar",
+        "delete": "Eliminar"
+      },
+      "success": {
+        "created": "Modelo creado correctamente",
+        "updated": "Modelo actualizado correctamente",
+        "deleted": "Modelo eliminado correctamente"
+      },
+      "errors": {
+        "loadError": "Error al cargar modelos",
+        "createError": "Error al crear modelo",
+        "updateError": "Error al actualizar modelo",
+        "deleteError": "Error al eliminar modelo"
+      },
+      "modal": {
+        "createTitle": "Crear Nuevo Modelo",
+        "editTitle": "Editar Modelo",
+        "viewTitle": "Detalles del Modelo",
+        "nameLabel": "Nombre del Modelo",
+        "descriptionLabel": "Descripción",
+        "typeLabel": "Tipo",
+        "lessonLabel": "Lección",
+        "fileLabel": "Archivo",
+        "fileHint": "Haz clic o arrastra un archivo",
+        "fileUploading": "Subiendo...",
+        "fileUploaded": "✓ Archivo subido",
+        "fileChange": "Cambiar",
+        "cancel": "Cancelar",
+        "create": "Crear Modelo",
+        "save": "Guardar Cambios",
+        "saving": "Guardando...",
+        "creating": "Creando...",
+        "close": "Cerrar",
+        "nameRequired": "El nombre es requerido",
+        "fileRequired": "Debes subir un archivo",
+        "uploadSuccess": "Archivo subido correctamente",
+        "uploadError": "Error al subir archivo"
+      }
     }
   },
   "teacher": {
@@ -870,6 +932,68 @@
         "performanceDesc": "Ver desempeño de todos los estudiantes",
         "addContent": "Añadir Contenido",
         "addContentDesc": "Crear nuevo contenido o lección"
+      }
+    },
+    "modelos": {
+      "title": "Gestión de Modelos RA",
+      "subtitle": "Administra los modelos de Realidad Aumentada de la plataforma",
+      "search": "Buscar por nombre o descripción...",
+      "create": "Nuevo Modelo",
+      "errorLoading": "Error al cargar modelos",
+      "table": {
+        "name": "Nombre",
+        "type": "Tipo",
+        "lesson": "Lección",
+        "description": "Descripción",
+        "createdBy": "Creado por",
+        "actions": "Acciones",
+        "noModels": "No hay modelos registrados aún",
+        "showing": "Mostrando",
+        "of": "de",
+        "models": "modelos"
+      },
+      "filters": {
+        "allTypes": "Todos los tipos"
+      },
+      "actions": {
+        "view": "Ver",
+        "edit": "Editar",
+        "delete": "Eliminar"
+      },
+      "success": {
+        "created": "Modelo creado correctamente",
+        "updated": "Modelo actualizado correctamente",
+        "deleted": "Modelo eliminado correctamente"
+      },
+      "errors": {
+        "loadError": "Error al cargar modelos",
+        "createError": "Error al crear modelo",
+        "updateError": "Error al actualizar modelo",
+        "deleteError": "Error al eliminar modelo"
+      },
+      "modal": {
+        "createTitle": "Crear Nuevo Modelo",
+        "editTitle": "Editar Modelo",
+        "viewTitle": "Detalles del Modelo",
+        "nameLabel": "Nombre del Modelo",
+        "descriptionLabel": "Descripción",
+        "typeLabel": "Tipo",
+        "lessonLabel": "Lección",
+        "fileLabel": "Archivo",
+        "fileHint": "Haz clic o arrastra un archivo",
+        "fileUploading": "Subiendo...",
+        "fileUploaded": "✓ Archivo subido",
+        "fileChange": "Cambiar",
+        "cancel": "Cancelar",
+        "create": "Crear Modelo",
+        "save": "Guardar Cambios",
+        "saving": "Guardando...",
+        "creating": "Creando...",
+        "close": "Cerrar",
+        "nameRequired": "El nombre es requerido",
+        "fileRequired": "Debes subir un archivo",
+        "uploadSuccess": "Archivo subido correctamente",
+        "uploadError": "Error al subir archivo"
       }
     }
   }
