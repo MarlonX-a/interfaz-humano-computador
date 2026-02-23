@@ -90,7 +90,7 @@ export default function PerformanceTable({
                 {t('teacher.performance.table.student') || 'Estudiante'}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {t('teacher.performance.table.tests') || 'Pruebas'}
+                {t('teacher.performance.table.attempts') || 'Intentos'}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {t('teacher.performance.table.average') || 'Promedio'}
@@ -100,6 +100,12 @@ export default function PerformanceTable({
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {t('teacher.performance.table.lessons') || 'Lecciones'}
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {t('teacher.performance.table.contents') || 'Contenidos'}
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {t('teacher.performance.table.following') || 'Siguiendo'}
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 {t('teacher.performance.table.lastActivity') || 'Última Actividad'}
@@ -112,7 +118,7 @@ export default function PerformanceTable({
           <tbody className="bg-white divide-y divide-gray-200">
             {paginatedStudents.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                   {searchQuery
                     ? t('teacher.performance.noStudentsFound') || 'No se encontraron estudiantes'
                     : t('teacher.performance.noStudents') || 'No hay estudiantes'}
@@ -137,14 +143,14 @@ export default function PerformanceTable({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
                       className={`text-sm font-medium ${
-                        student.promedio_puntaje >= 70
+                        (student.promedio_puntaje ?? 0) >= 70
                           ? 'text-green-600'
-                          : student.promedio_puntaje >= 50
+                          : (student.promedio_puntaje ?? 0) >= 50
                           ? 'text-yellow-600'
                           : 'text-red-600'
                       }`}
                     >
-                      {student.promedio_puntaje.toFixed(1)}%
+                      {(student.promedio_puntaje ?? 0).toFixed(1)}%
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -154,6 +160,18 @@ export default function PerformanceTable({
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {student.lecciones_completadas}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className="text-green-600 font-medium">{student.contenidos_aprobados}</span>
+                    {' / '}
+                    <span className="text-red-600 font-medium">{student.contenidos_reprobados}</span>
+                    {' / '}
+                    <span className="text-gray-500">{student.contenidos_completados}</span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                      {student.contenidos_seguidos}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(student.ultima_actividad)}

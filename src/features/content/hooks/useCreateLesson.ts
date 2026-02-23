@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { supabase } from "@/shared/lib/supabaseClient";
 import { getProfile } from "@/shared/services/profiles";
 import { createLeccion, updateLeccion } from "@/features/lessons/services/lecciones";
-import { createModeloRA, updateModeloRA, listModelosByLeccion } from "@/features/models3d/services/modelos";
+import { createModeloRA, updateModeloRA, listModelosByLeccion, deleteModeloRA } from "@/features/models3d/services/modelos";
 import { listPruebasByLeccion, deletePrueba } from "@/features/pruebas/services/pruebas";
 import {
   uploadFileWithProgress,
@@ -43,6 +43,7 @@ export function useCreateLesson({
   const [descripcion, setDescripcion] = useState("");
   const [nivel, setNivel] = useState("");
   const [thumbnail_url, setThumbnailUrl] = useState("");
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // ── Model upload ─────────────────────────────────────────
@@ -180,10 +181,48 @@ export function useCreateLesson({
           created_by: uid || null,
         } as any);
 
+        // Obtener el modelo recién creado para tener su ID
+        const modelosActualizados = await listModelosByLeccion(targetLeccionId);
+        const modeloCreado = modelosActualizados.find((m) => m.archivo_url === archivo_url);
+
+        // Crear leccion_seccion de tipo 'modelo' para que sea visible al estudiante
+        if (modeloCreado?.id) {
+          try {
+            const { data: maxOrdenData } = await supabase
+              .from("leccion_seccion")
+              .select("orden")
+              .eq("leccion_id", targetLeccionId)
+              .order("orden", { ascending: false })
+              .limit(1);
+            const nextOrden = (maxOrdenData?.[0]?.orden ?? 0) + 10;
+            await supabase.from("leccion_seccion").insert([{
+              leccion_id: targetLeccionId,
+              tipo: "modelo",
+              contenido_id: null,
+              prueba_id: null,
+              modelo_id: modeloCreado.id,
+              orden: nextOrden,
+              es_obligatorio: false,
+              requisitos: [],
+              titulo_seccion: modeloCreado.nombre_modelo,
+              descripcion_seccion: null,
+            }]);
+          } catch (secErr) {
+            console.warn("Error creando leccion_seccion para modelo:", secErr);
+          }
+        }
+
         toast.success(t("createLesson.success.modelUploadedAndLinked"));
         setUploadProgress(100);
         setUploadedModelUrl(archivo_url);
         triggerDownload(archivo_url, modelName || `modelo_${Date.now()}.glb`);
+
+        // Recargar la lista de modelos disponibles
+        if (targetLeccionId) {
+          listModelosByLeccion(targetLeccionId)
+            .then(setAvailableModelos)
+            .catch(() => {});
+        }
 
         setModelFile(null);
         setModelName("");
@@ -240,9 +279,35 @@ export function useCreateLesson({
             if (!uid) {
               toast.error(t("createLesson.errors.notAuthenticatedToLinkModel"));
             } else {
-              await updateModeloRA(pendingQuickModel.id ?? pendingQuickModel, {
+              const quickModelId = pendingQuickModel.id ?? (pendingQuickModel as any);
+              await updateModeloRA(quickModelId, {
                 leccion_id: targetLeccionId,
               });
+
+              // Crear leccion_seccion de tipo 'modelo' para que sea visible
+              try {
+                const { data: maxOrdenData } = await supabase
+                  .from("leccion_seccion")
+                  .select("orden")
+                  .eq("leccion_id", targetLeccionId)
+                  .order("orden", { ascending: false })
+                  .limit(1);
+                const nextOrden = (maxOrdenData?.[0]?.orden ?? 0) + 10;
+                await supabase.from("leccion_seccion").insert([{
+                  leccion_id: targetLeccionId,
+                  tipo: "modelo",
+                  contenido_id: null,
+                  prueba_id: null,
+                  modelo_id: typeof quickModelId === 'number' ? quickModelId : pendingQuickModel.id,
+                  orden: nextOrden,
+                  es_obligatorio: false,
+                  requisitos: [],
+                  titulo_seccion: pendingQuickModel.nombre_modelo,
+                  descripcion_seccion: null,
+                }]);
+              } catch (secErr) {
+                console.warn("Error creando leccion_seccion para modelo rápido:", secErr);
+              }
             }
           } catch (err: any) {
             console.warn("Error linking quick model", err);
@@ -256,10 +321,13 @@ export function useCreateLesson({
           await uploadModel(targetLeccionId);
         }
 
-        // Recargar pruebas
+        // Recargar pruebas y modelos
         if (targetLeccionId) {
           listPruebasByLeccion(targetLeccionId)
             .then(setPruebas)
+            .catch(() => {});
+          listModelosByLeccion(targetLeccionId)
+            .then(setAvailableModelos)
             .catch(() => {});
         }
 
@@ -335,6 +403,65 @@ export function useCreateLesson({
     setShowQuickModelModal(false);
   }, []);
 
+  /** Subir imagen de thumbnail a Supabase Storage */
+  const handleThumbnailUpload = useCallback(
+    async (file: File) => {
+      const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
+
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast.error(t("createLesson.errors.invalidImageType") || "Solo se permiten imágenes (JPG, PNG, WebP, GIF)");
+        return;
+      }
+      if (file.size > MAX_SIZE) {
+        toast.error(t("createLesson.errors.imageTooLarge") || "La imagen no debe superar 5 MB");
+        return;
+      }
+
+      setThumbnailUploading(true);
+      try {
+        const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+        const objectPath = `thumbnails/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+        const publicUrl = await uploadFileWithProgress(file, "contenido-media", objectPath, () => {});
+        setThumbnailUrl(publicUrl);
+        toast.success(t("createLesson.thumbnailUploaded") || "Thumbnail subido correctamente");
+      } catch (err: any) {
+        console.error("Error uploading thumbnail:", err);
+        toast.error(err?.message || "Error al subir thumbnail");
+      } finally {
+        setThumbnailUploading(false);
+      }
+    },
+    [t]
+  );
+
+  /** Eliminar un modelo RA existente */
+  const handleDeleteModelo = useCallback(
+    async (modeloId: number) => {
+      if (!confirm(t("createLesson.confirmDeleteModel") || "¿Estás seguro de eliminar este modelo 3D?")) return;
+      try {
+        // Eliminar leccion_seccion asociada
+        await supabase.from("leccion_seccion").delete().eq("modelo_id", modeloId);
+        // Eliminar contenido_modelo asociado
+        await supabase.from("contenido_modelo").delete().eq("modelo_ra_id", modeloId);
+        // Eliminar el modelo
+        await deleteModeloRA(modeloId);
+        toast.success(t("createLesson.modelDeleted") || "Modelo eliminado");
+        // Recargar lista
+        if (leccion?.id) {
+          const updated = await listModelosByLeccion(leccion.id);
+          setAvailableModelos(updated);
+        } else {
+          setAvailableModelos((prev) => prev.filter((m) => m.id !== modeloId));
+        }
+      } catch (err: any) {
+        console.error("Error deleting modelo:", err);
+        toast.error(err?.message || "Error al eliminar modelo");
+      }
+    },
+    [leccion, t]
+  );
+
   // ── Return ───────────────────────────────────────────────
 
   return {
@@ -343,6 +470,8 @@ export function useCreateLesson({
     descripcion, setDescripcion,
     nivel, setNivel,
     thumbnail_url, setThumbnailUrl,
+    thumbnailUploading,
+    handleThumbnailUpload,
     isLoading,
 
     // Model upload
@@ -375,5 +504,6 @@ export function useCreateLesson({
     handlePruebaUpdated,
     handlePruebaModalClose,
     handleQuickModelCreated,
+    handleDeleteModelo,
   };
 }

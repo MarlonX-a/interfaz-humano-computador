@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/shared/lib/supabaseClient';
 import { getProfile } from '@/shared/services/profiles';
-import { getProgresosByUsuario } from '@/shared/services/progresos';
+import { getProgresosByUsuario, getContentProgressForUser } from '@/shared/services/progresos';
+import type { ContentProgress } from '@/shared/services/progresos';
 import type { Progreso, ProgresoConLeccion, Leccion } from '@/shared/types';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { CheckCircle, XCircle, BookOpen, Award } from 'lucide-react';
 
 export default function StudentDashboard() {
   const { t } = useTranslation();
@@ -14,6 +16,7 @@ export default function StudentDashboard() {
   const [profile, setProfile] = useState<any | null>(null);
   const [progresos, setProgresos] = useState<ProgresoConLeccion[]>([]);
   const [totalLessons, setTotalLessons] = useState<number | null>(null);
+  const [contentProgress, setContentProgress] = useState<ContentProgress[]>([]);
 
   useEffect(() => {
     let channel: any = null;
@@ -31,6 +34,10 @@ export default function StudentDashboard() {
         // total lessons count
         const { data: lessonsData } = await supabase.from('leccion').select('id', { count: 'exact' });
         setTotalLessons((lessonsData || []).length);
+
+        // content-level progress
+        const cp = await getContentProgressForUser(session.user.id);
+        setContentProgress(cp || []);
 
         // subscribe to realtime updates for progreso for this user
         channel = (supabase as any).channel(`progreso:usuario_id=eq.${session.user.id}`)
@@ -100,6 +107,7 @@ export default function StudentDashboard() {
       {loading ? (
         <div className="text-center py-8 text-gray-500">{t('loading', { defaultValue: 'Cargando...' })}</div>
       ) : (
+        <>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="col-span-2 bg-white p-6 rounded-lg shadow">
             <div className="flex items-center justify-between">
@@ -159,9 +167,110 @@ export default function StudentDashboard() {
                 <div className="text-sm text-gray-600">{t('student.dashboard.averageScore', { defaultValue: 'Promedio de puntaje' })}</div>
                 <div className="font-medium">{avgScore}%</div>
               </div>
+              {contentProgress.length > 0 && (
+                <>
+                  <hr className="my-2" />
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">{t('student.dashboard.totalContents', { defaultValue: 'Total contenidos' })}</div>
+                    <div className="font-medium">{contentProgress.length}</div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">{t('student.dashboard.contentsCompleted', { defaultValue: 'Contenidos completados' })}</div>
+                    <div className="font-medium">{contentProgress.filter(c => c.completado).length}</div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm text-gray-600">{t('student.dashboard.contentsApproved', { defaultValue: 'Contenidos aprobados' })}</div>
+                    <div className="font-medium text-green-600">{contentProgress.filter(c => c.aprobado).length}</div>
+                  </div>
+                </>
+              )}
             </div>
           </aside>
         </div>
+
+        {/* Content Progress Section */}
+        {contentProgress.length > 0 ? (
+          <div className="mt-6">
+            <h2 className="text-xl font-semibold mb-4">{t('student.dashboard.contentProgress', { defaultValue: 'Progreso de Contenidos' })}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {contentProgress.map((cp) => {
+                const pct = cp.lecciones_total > 0 ? Math.round((cp.lecciones_completadas / cp.lecciones_total) * 100) : 0;
+                return (
+                  <div key={cp.contenido_id} className="bg-white rounded-lg shadow p-4 border border-gray-200">
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={18} className="text-blue-500 flex-shrink-0" />
+                        <h4 className="font-medium text-gray-900 line-clamp-2">{cp.titulo}</h4>
+                      </div>
+                      {cp.completado && (
+                        <span className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full flex-shrink-0 ${
+                          cp.aprobado ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {cp.aprobado ? <Award size={14} /> : <XCircle size={14} />}
+                          {cp.aprobado
+                            ? t('student.dashboard.approved', { defaultValue: 'Aprobado' })
+                            : t('student.dashboard.failed', { defaultValue: 'Reprobado' })}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>{cp.lecciones_completadas}/{cp.lecciones_total} {t('student.dashboard.lessonsLabel', { defaultValue: 'lecciones' })}</span>
+                        <span>{pct}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            cp.completado
+                              ? cp.aprobado ? 'bg-green-500' : 'bg-red-500'
+                              : 'bg-blue-500'
+                          }`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Score */}
+                    {cp.completado && (
+                      <div className="mt-2 flex items-center justify-between text-sm">
+                        <span className="text-gray-600">{t('student.dashboard.averageScoreLabel', { defaultValue: 'Puntaje promedio' })}</span>
+                        <span className={`font-semibold ${cp.promedio_puntaje >= 70 ? 'text-green-600' : cp.promedio_puntaje >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                          {cp.promedio_puntaje}%
+                        </span>
+                      </div>
+                    )}
+
+                    {!cp.completado && (
+                      <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                        <span className="inline-block w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                        {t('student.dashboard.inProgress', { defaultValue: 'En progreso' })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 bg-white rounded-lg shadow p-6 text-center">
+            <BookOpen size={40} className="mx-auto text-gray-400 mb-3" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              {t('student.dashboard.noFollowedContent', { defaultValue: 'No sigues ningún contenido aún' })}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {t('student.dashboard.noFollowedContentDesc', { defaultValue: 'Explora los contenidos disponibles y sigue los que te interesen para ver tu progreso aquí.' })}
+            </p>
+            <button
+              onClick={() => navigate('/contents')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              {t('student.dashboard.browseContents', { defaultValue: 'Explorar contenidos' })}
+            </button>
+          </div>
+        )}
+        </>
       )}
     </main>
   );

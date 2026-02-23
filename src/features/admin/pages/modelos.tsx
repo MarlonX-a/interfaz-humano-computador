@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabaseClient';
-import { getProfile } from '../../lib/data/profiles';
+import { supabase } from '@/shared/lib/supabaseClient';
+import { getProfile } from '@/shared/services/profiles';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { listAllModelos, deleteModeloRA } from '../../lib/data/modelos';
-import { listLecciones } from '../../lib/data/lecciones';
-import type { ModeloRA, Leccion } from '../../types/db';
+import { listAllModelos, deleteModeloRA } from '@/features/models3d/services/modelos';
+import { listLecciones } from '@/features/lessons/services/lecciones';
+import type { ModeloRA, Leccion } from '@/shared/types';
 import { Plus, Trash2, Edit2, Eye, Search } from 'lucide-react';
-import EditModeloModal from '../../components/EditModeloModal';
-import ViewModeloModal from '../../components/ViewModeloModal';
-import CreateModeloModal from '../../components/CreateModeloModal';
+import EditModeloModal from '@/features/performance/components/EditModeloModal';
+import ViewModeloModal from '@/features/performance/components/ViewModeloModal';
+import CreateModeloModal from '@/features/performance/components/CreateModeloModal';
 
 export default function AdminModelos() {
   const { t } = useTranslation();

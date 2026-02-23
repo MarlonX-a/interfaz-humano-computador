@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Mail, Calendar, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { X, Mail, Calendar, CheckCircle, XCircle, Clock, BookOpen, Award } from 'lucide-react';
 import type { StudentDetail } from '@/features/performance/services/performance';
 import PerformanceChart from './PerformanceChart';
 
@@ -105,6 +105,23 @@ export default function StudentPerformanceDetail({
                 </div>
               </div>
 
+              {/* Contenidos que sigue */}
+              {student.contenidos_seguidos_nombres && student.contenidos_seguidos_nombres.length > 0 && (
+                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                    {t('teacher.performance.followedContents') || 'Contenidos que sigue'}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {student.contenidos_seguidos_nombres.map((nombre, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+                        <BookOpen size={14} />
+                        {nombre}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Historial de Pruebas */}
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -149,18 +166,18 @@ export default function StudentPerformanceDetail({
                             <td className="px-4 py-3 text-sm">
                               <span
                                 className={`font-medium ${
-                                  prueba.mejor_puntaje >= 70
+                                  (prueba.mejor_puntaje ?? 0) >= 70
                                     ? 'text-green-600'
-                                    : prueba.mejor_puntaje >= 50
+                                    : (prueba.mejor_puntaje ?? 0) >= 50
                                     ? 'text-yellow-600'
                                     : 'text-red-600'
                                 }`}
                               >
-                                {prueba.mejor_puntaje.toFixed(1)}%
+                                {(prueba.mejor_puntaje ?? 0).toFixed(1)}%
                               </span>
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-900">
-                              {prueba.promedio.toFixed(1)}%
+                              {(prueba.promedio ?? 0).toFixed(1)}%
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {prueba.aprobado ? (
@@ -239,6 +256,84 @@ export default function StudentPerformanceDetail({
                   <PerformanceChart type="evolution" data={student.evolucion_puntajes} />
                 </div>
               )}
+
+              {/* Progreso en Contenidos */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  {t('teacher.performance.contentProgress') || 'Progreso en Contenidos'}
+                </h3>
+                {(!student.contenidos || student.contenidos.length === 0) ? (
+                  <p className="text-gray-500 text-center py-4">
+                    {t('teacher.performance.noContents') || 'No hay contenidos registrados'}
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {student.contenidos.map((contenido) => {
+                      const pct = contenido.lecciones_total > 0
+                        ? Math.round((contenido.lecciones_completadas / contenido.lecciones_total) * 100)
+                        : 0;
+                      return (
+                        <div
+                          key={contenido.contenido_id}
+                          className="bg-white rounded-lg border border-gray-200 p-4"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <BookOpen size={18} className="text-blue-500 flex-shrink-0" />
+                              <h4 className="font-medium text-gray-900">{contenido.titulo}</h4>
+                            </div>
+                            {contenido.completado ? (
+                              contenido.aprobado ? (
+                                <span className="flex items-center gap-1 text-green-600 text-sm font-semibold">
+                                  <Award size={16} />
+                                  {t('teacher.performance.approved') || 'Aprobado'}
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-red-600 text-sm font-semibold">
+                                  <XCircle size={16} />
+                                  {t('teacher.performance.failed') || 'Reprobado'}
+                                </span>
+                              )
+                            ) : (
+                              <span className="flex items-center gap-1 text-gray-500 text-sm">
+                                <Clock size={16} />
+                                {t('teacher.performance.inProgress') || 'En Progreso'}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="mt-2">
+                            <div className="flex justify-between text-xs text-gray-500 mb-1">
+                              <span>{contenido.lecciones_completadas}/{contenido.lecciones_total} {t('teacher.performance.lessonsLabel') || 'lecciones'}</span>
+                              <span>{pct}%</span>
+                            </div>
+                            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  contenido.completado
+                                    ? contenido.aprobado ? 'bg-green-500' : 'bg-red-500'
+                                    : 'bg-blue-500'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          {contenido.completado && (
+                            <p className="text-sm text-gray-600 mt-2">
+                              {t('teacher.performance.averageScore') || 'Promedio'}:{' '}
+                              <span className={`font-semibold ${contenido.promedio_puntaje >= 70 ? 'text-green-600' : 'text-red-600'}`}>
+                                {contenido.promedio_puntaje}%
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

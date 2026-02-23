@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Filter } from 'lucide-react';
+import { X, Filter, UserCheck } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { UserFilters } from '@/shared/types';
 
@@ -95,6 +95,24 @@ export default function UserFiltersComponent({ filters, onFiltersChange }: UserF
                 <option value="">{t('admin.users.filters.all') || 'Todos'}</option>
                 <option value="true">{t('admin.users.filters.active') || 'Activo'}</option>
                 <option value="false">{t('admin.users.filters.inactive') || 'Inactivo'}</option>
+              </select>
+            </div>
+
+            {/* Filtro por solicitudes pendientes */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                <UserCheck size={14} className="text-amber-500" />
+                {t('admin.users.filters.pendingRequests') || 'Solicitudes Pendientes'}
+              </label>
+              <select
+                value={filters.has_pending_request !== undefined ? String(filters.has_pending_request) : ''}
+                onChange={(e) =>
+                  handleFilterChange('has_pending_request', e.target.value === '' ? undefined : e.target.value === 'true')
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="">{t('admin.users.filters.all') || 'Todos'}</option>
+                <option value="true">{t('admin.users.filters.withPendingRequest') || 'Con solicitud pendiente'}</option>
               </select>
             </div>
 

@@ -1,5 +1,17 @@
 import { supabase } from "@/shared/lib/supabaseClient";
 import type { Progreso, ProgresoConLeccion } from "@/shared/types";
+import { getContenidosSeguidos } from "@/shared/services/seguimiento";
+
+/** Estado de progreso de un contenido para un estudiante */
+export interface ContentProgress {
+  contenido_id: number;
+  titulo: string;
+  lecciones_total: number;
+  lecciones_completadas: number;
+  completado: boolean;
+  promedio_puntaje: number;
+  aprobado: boolean; // promedio >= 70
+}
 
 /**
  * Obtiene progresos de un usuario y retorna junto la lección
@@ -131,4 +143,184 @@ export async function upsertProgresoLastAccess(usuarioId: string, leccionId: num
     .single();
   if (error) throw error;
   return data as Progreso;
+}
+
+/**
+ * Obtiene el progreso de los contenidos que el estudiante SIGUE.
+ * Un contenido está "completado" si todas sus lecciones (via contenido_leccion) tienen completado=true.
+ * Un contenido está "aprobado" si el promedio de puntaje de sus lecciones >= 70.
+ */
+export async function getContentProgressForUser(usuarioId: string): Promise<ContentProgress[]> {
+  // 1. Obtener solo los contenidos que el usuario sigue
+  const seguidos = await getContenidosSeguidos(usuarioId);
+  if (seguidos.length === 0) return [];
+
+  const { data: contenidos, error: contErr } = await supabase
+    .from('contenido')
+    .select('id, titulo')
+    .in('id', seguidos);
+  if (contErr) throw contErr;
+  if (!contenidos || contenidos.length === 0) return [];
+
+  const contenidoIds = contenidos.map((c: any) => c.id);
+
+  // 2. Obtener relaciones contenido_leccion
+  const { data: contenidoLecciones, error: clErr } = await supabase
+    .from('contenido_leccion')
+    .select('contenido_id, leccion_id')
+    .in('contenido_id', contenidoIds);
+  if (clErr) throw clErr;
+
+  // Agrupar lecciones por contenido
+  const leccionesPorContenido: Record<number, number[]> = {};
+  (contenidoLecciones || []).forEach((cl: any) => {
+    if (!leccionesPorContenido[cl.contenido_id]) {
+      leccionesPorContenido[cl.contenido_id] = [];
+    }
+    leccionesPorContenido[cl.contenido_id].push(cl.leccion_id);
+  });
+
+  // 3. Obtener todos los progresos del estudiante
+  const { data: progresos, error: progErr } = await supabase
+    .from('progreso')
+    .select('leccion_id, completado, puntaje')
+    .eq('usuario_id', usuarioId);
+  if (progErr) throw progErr;
+
+  const progresoByLeccion: Record<number, { completado: boolean; puntaje: number | null }> = {};
+  (progresos || []).forEach((p: any) => {
+    if (p.leccion_id) {
+      const existing = progresoByLeccion[p.leccion_id];
+      // Si hay duplicados, priorizar completado=true y el mayor puntaje
+      if (!existing || (!existing.completado && p.completado) || (p.puntaje != null && (existing.puntaje == null || p.puntaje > existing.puntaje))) {
+        progresoByLeccion[p.leccion_id] = {
+          completado: existing ? (existing.completado || !!p.completado) : !!p.completado,
+          puntaje: Math.max(existing?.puntaje ?? 0, p.puntaje ?? 0) || null,
+        };
+      }
+    }
+  });
+
+  // 4. Calcular progreso por contenido
+  const results: ContentProgress[] = [];
+  for (const contenido of contenidos) {
+    const leccionIds = leccionesPorContenido[contenido.id] || [];
+    if (leccionIds.length === 0) continue; // skip content without lessons
+
+    let completadas = 0;
+    let sumPuntaje = 0;
+    let countPuntaje = 0;
+
+    for (const lid of leccionIds) {
+      const prog = progresoByLeccion[lid];
+      if (prog?.completado) completadas++;
+      if (prog?.puntaje != null) {
+        sumPuntaje += prog.puntaje;
+        countPuntaje++;
+      }
+    }
+
+    const lTotal = leccionIds.length;
+    const esCompletado = completadas === lTotal;
+    const promedio = countPuntaje > 0 ? Math.round((sumPuntaje / countPuntaje) * 100) / 100 : 0;
+    const esAprobado = esCompletado && promedio >= 70;
+
+    results.push({
+      contenido_id: contenido.id,
+      titulo: contenido.titulo,
+      lecciones_total: lTotal,
+      lecciones_completadas: completadas,
+      completado: esCompletado,
+      promedio_puntaje: promedio,
+      aprobado: esAprobado,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Obtiene el progreso de contenidos de una lista específica de contenidos para un estudiante.
+ * Usado en el panel de desempeño del profesor.
+ */
+export async function getContentProgressForUserByContentIds(
+  usuarioId: string,
+  contenidoIds: number[]
+): Promise<ContentProgress[]> {
+  if (!contenidoIds || contenidoIds.length === 0) return [];
+
+  const { data: contenidos, error: contErr } = await supabase
+    .from('contenido')
+    .select('id, titulo')
+    .in('id', contenidoIds);
+  if (contErr) throw contErr;
+  if (!contenidos || contenidos.length === 0) return [];
+
+  const { data: contenidoLecciones, error: clErr } = await supabase
+    .from('contenido_leccion')
+    .select('contenido_id, leccion_id')
+    .in('contenido_id', contenidoIds);
+  if (clErr) throw clErr;
+
+  const leccionesPorContenido: Record<number, number[]> = {};
+  (contenidoLecciones || []).forEach((cl: any) => {
+    if (!leccionesPorContenido[cl.contenido_id]) leccionesPorContenido[cl.contenido_id] = [];
+    leccionesPorContenido[cl.contenido_id].push(cl.leccion_id);
+  });
+
+  const allLeccionIds = Array.from(new Set((contenidoLecciones || []).map((cl: any) => cl.leccion_id)));
+
+  let progresoByLeccion: Record<number, { completado: boolean; puntaje: number | null }> = {};
+  if (allLeccionIds.length > 0) {
+    const { data: progresos, error: progErr } = await supabase
+      .from('progreso')
+      .select('leccion_id, completado, puntaje')
+      .eq('usuario_id', usuarioId)
+      .in('leccion_id', allLeccionIds);
+    if (progErr) throw progErr;
+    (progresos || []).forEach((p: any) => {
+      if (p.leccion_id) {
+        const existing = progresoByLeccion[p.leccion_id];
+        // Si hay duplicados, priorizar completado=true y el mayor puntaje
+        if (!existing || (!existing.completado && p.completado) || (p.puntaje != null && (existing.puntaje == null || p.puntaje > existing.puntaje))) {
+          progresoByLeccion[p.leccion_id] = {
+            completado: existing ? (existing.completado || !!p.completado) : !!p.completado,
+            puntaje: Math.max(existing?.puntaje ?? 0, p.puntaje ?? 0) || null,
+          };
+        }
+      }
+    });
+  }
+
+  const results: ContentProgress[] = [];
+  for (const contenido of contenidos) {
+    const leccionIds = leccionesPorContenido[contenido.id] || [];
+    if (leccionIds.length === 0) continue;
+
+    let completadas = 0;
+    let sumPuntaje = 0;
+    let countPuntaje = 0;
+
+    for (const lid of leccionIds) {
+      const prog = progresoByLeccion[lid];
+      if (prog?.completado) completadas++;
+      if (prog?.puntaje != null) { sumPuntaje += prog.puntaje; countPuntaje++; }
+    }
+
+    const lTotal = leccionIds.length;
+    const esCompletado = completadas === lTotal;
+    const promedio = countPuntaje > 0 ? Math.round((sumPuntaje / countPuntaje) * 100) / 100 : 0;
+
+    results.push({
+      contenido_id: contenido.id,
+      titulo: contenido.titulo,
+      lecciones_total: lTotal,
+      lecciones_completadas: completadas,
+      completado: esCompletado,
+      promedio_puntaje: promedio,
+      aprobado: esCompletado && promedio >= 70,
+    });
+  }
+
+  return results;
 }

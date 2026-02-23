@@ -4,7 +4,7 @@ import { supabase } from '@/shared/lib/supabaseClient';
 import { getProfile } from '@/shared/services/profiles';
 import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
-import { listUsers, deleteUser } from '@/features/admin/services/users';
+import { listUsers, deleteUser, approveRoleRequest, rejectRoleRequest } from '@/features/admin/services/users';
 import type { UserWithProfile, UserFilters } from '@/shared/types';
 import EditUserModal from '@/features/admin/components/EditUserModal';
 import CreateUserModal from '@/features/admin/components/CreateUserModal';
@@ -98,6 +98,35 @@ export default function AdminUsers() {
 
   const handleEdit = (user: UserWithProfile) => {
     setEditingUserId(user.id);
+  };
+
+  const handleApproveRole = async (user: UserWithProfile) => {
+    const roleName = user.profile?.role_requested || 'profesor';
+    const confirmMsg = t('admin.users.confirmApproveRole', { email: user.email, role: roleName }) ||
+      `¿Aprobar la solicitud de ${user.email} para ser ${roleName}?`;
+    if (!window.confirm(confirmMsg)) return;
+    try {
+      await approveRoleRequest(user.id);
+      toast.success(t('admin.users.success.roleApproved') || 'Solicitud de rol aprobada');
+      await loadUsers();
+    } catch (error: any) {
+      console.error('Error approving role:', error);
+      toast.error(error?.message || t('admin.users.errors.approveError') || 'Error al aprobar solicitud');
+    }
+  };
+
+  const handleRejectRole = async (user: UserWithProfile) => {
+    const confirmMsg = t('admin.users.confirmRejectRole', { email: user.email }) ||
+      `¿Rechazar la solicitud de rol de ${user.email}?`;
+    if (!window.confirm(confirmMsg)) return;
+    try {
+      await rejectRoleRequest(user.id);
+      toast.success(t('admin.users.success.roleRejected') || 'Solicitud de rol rechazada');
+      await loadUsers();
+    } catch (error: any) {
+      console.error('Error rejecting role:', error);
+      toast.error(error?.message || t('admin.users.errors.rejectError') || 'Error al rechazar solicitud');
+    }
   };
 
   const handleModalClose = () => {
@@ -221,6 +250,8 @@ export default function AdminUsers() {
         loading={loading}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onApproveRole={handleApproveRole}
+        onRejectRole={handleRejectRole}
       />
 
       {/* Modales */}

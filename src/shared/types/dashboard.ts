@@ -13,6 +13,7 @@ export interface DashboardStats {
   total_pruebas: number;
   total_resultados: number;
   total_progreso: number;
+  pending_role_requests: number;
   approval_rate: number; // porcentaje
   monthly_activity: number; // actividad del mes actual
 }

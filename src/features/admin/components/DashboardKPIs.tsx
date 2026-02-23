@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users, BookOpen, FileText, ClipboardCheck, TrendingUp, CheckCircle, Activity, GraduationCap } from 'lucide-react';
+import { Users, BookOpen, FileText, ClipboardCheck, TrendingUp, CheckCircle, Activity, GraduationCap, UserCheck } from 'lucide-react';
 import type { DashboardStats } from '@/shared/types';
 
 interface DashboardKPIsProps {
@@ -48,6 +48,13 @@ export default function DashboardKPIs({ stats, loading }: DashboardKPIsProps) {
       icon: Users,
       color: 'bg-green-500',
       textColor: 'text-green-600',
+    },
+    {
+      title: t('admin.dashboard.kpis.pendingRequests') || 'Solicitudes Pendientes',
+      value: stats.pending_role_requests,
+      icon: UserCheck,
+      color: stats.pending_role_requests > 0 ? 'bg-amber-500' : 'bg-gray-400',
+      textColor: stats.pending_role_requests > 0 ? 'text-amber-600' : 'text-gray-500',
     },
     {
       title: t('admin.dashboard.kpis.totalLessons') || 'Total Lecciones',

@@ -3,12 +3,18 @@ import { supabase } from "@/shared/lib/supabaseClient";
 import { useTranslation } from "react-i18next";
 import toast from "react-hot-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { Heart } from "lucide-react";
+import { getContenidosSeguidos, seguirContenido, dejarDeSeguirContenido } from "@/shared/services/seguimiento";
 
 export default function ContentsPage() {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [contents, setContents] = useState<any[]>([]);
   const [lessonsById, setLessonsById] = useState<Record<number, any>>({});
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [followedIds, setFollowedIds] = useState<Set<number>>(new Set());
+  const [togglingFollow, setTogglingFollow] = useState<number | null>(null);
 
   const [searchParams] = useSearchParams();
   const typeFilter = searchParams.get('type');
@@ -16,8 +22,48 @@ export default function ContentsPage() {
   useEffect(() => {
     fetchContents(typeFilter);
     fetchLessons();
+    loadUserAndFollows();
     console.debug('[ContentsPage] i18n language:', i18n.language, 'viewLesson:', t('contents.card.viewLesson'), 'typeFilter:', typeFilter);
   }, [typeFilter]);
+
+  const loadUserAndFollows = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      setUserId(session.user.id);
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      setUserRole(profile?.role || session.user.user_metadata?.role || null);
+      // Load followed content ids
+      const ids = await getContenidosSeguidos(session.user.id);
+      setFollowedIds(new Set(ids));
+    } catch (e) {
+      console.error('Error loading user follows', e);
+    }
+  };
+
+  const toggleFollow = async (contenidoId: number) => {
+    if (!userId) {
+      toast.error(t('login.required', { defaultValue: 'Necesitas iniciar sesión' }));
+      return;
+    }
+    setTogglingFollow(contenidoId);
+    try {
+      if (followedIds.has(contenidoId)) {
+        await dejarDeSeguirContenido(userId, contenidoId);
+        setFollowedIds(prev => { const s = new Set(prev); s.delete(contenidoId); return s; });
+        toast.success(t('contents.unfollowed', { defaultValue: 'Dejaste de seguir este contenido' }));
+      } else {
+        await seguirContenido(userId, contenidoId);
+        setFollowedIds(prev => new Set(prev).add(contenidoId));
+        toast.success(t('contents.followed', { defaultValue: 'Ahora sigues este contenido' }));
+      }
+    } catch (e) {
+      console.error('Error toggling follow', e);
+      toast.error(t('contents.followError', { defaultValue: 'Error al actualizar seguimiento' }));
+    } finally {
+      setTogglingFollow(null);
+    }
+  };
 
   const fetchLessons = async () => {
     const { data, error } = await supabase.from('leccion').select('id,titulo');
@@ -112,12 +158,34 @@ export default function ContentsPage() {
                   ))}
                 </div>
               </div>
-              <div className="mt-4 flex items-center gap-2 justify-end">
+              <div className="mt-4 flex items-center gap-2 justify-between">
+                {/* Follow button for students */}
+                {userId && userRole === 'student' && (
+                  <button
+                    onClick={() => toggleFollow(c.id)}
+                    disabled={togglingFollow === c.id}
+                    className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-colors ${
+                      followedIds.has(c.id)
+                        ? 'bg-pink-100 text-pink-600 hover:bg-pink-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    } disabled:opacity-50`}
+                    title={followedIds.has(c.id)
+                      ? t('contents.unfollow', { defaultValue: 'Dejar de seguir' })
+                      : t('contents.follow', { defaultValue: 'Seguir' })}
+                  >
+                    <Heart size={16} className={followedIds.has(c.id) ? 'fill-pink-500' : ''} />
+                    {followedIds.has(c.id)
+                      ? t('contents.following', { defaultValue: 'Siguiendo' })
+                      : t('contents.follow', { defaultValue: 'Seguir' })}
+                  </button>
+                )}
+                <div className="flex items-center gap-2">
                 {c.leccion_id ? (
                   <button onClick={() => viewLesson(c.leccion_id)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">{t('lessons.card.viewClass', { defaultValue: i18n.language === 'es' ? 'Ver clase' : 'View class' })}</button>
                 ) : (
                   <button onClick={() => navigate(`/add-content?contentId=${c.id}`)} className="px-3 py-1 rounded bg-blue-600 text-white text-sm">{t('contents.card.edit', { defaultValue: i18n.language === 'es' ? 'Editar contenido' : 'Edit content' })}</button>
                 )}
+                </div>
               </div>
             </article>
           ))

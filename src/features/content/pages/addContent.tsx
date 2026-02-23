@@ -2,7 +2,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/shared/lib/supabaseClient";
 import toast from "react-hot-toast";
-import heroImage from "@/img/quimica1.png";
 import { useTranslation } from "react-i18next";
 import type { Leccion, ContentSlide, ModeloRA, MediaFile } from "@/shared/types";
 import CreateLessonModal from "@/features/content/components/CreateLessonModal";
@@ -81,8 +80,6 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
   const [showAuthorSuggestions, setShowAuthorSuggestions] = useState(false);
   const [authorActiveIndex, setAuthorActiveIndex] = useState<number>(-1);
   const [filteredAuthorSuggestions, setFilteredAuthorSuggestions] = useState<string[]>([]);
-
-  const inputClass = "w-full border px-3 py-2 rounded text-black";
 
   const typeOptions = useMemo(
     () => [
@@ -402,6 +399,10 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       media_type: form.media_files && form.media_files.length > 0 ? form.media_files[0].type : null,
     };
 
+    // Añadir created_by en inserciones nuevas
+    const sessionData = await supabase.auth.getSession();
+    const currentUserId = sessionData.data?.session?.user?.id;
+
     setSaving(true);
     setSaveProgress(10);
     setTimeout(() => setSaveProgress(50), 200);
@@ -453,7 +454,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
       }
       const { data, error } = await supabase
         .from("contenido")
-        .insert([payload])
+        .insert([{ ...payload, created_by: currentUserId || null }])
         .select("id");
 
       console.log("🟣 Respuesta Supabase (insert):", { data, error });
@@ -465,6 +466,45 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
         try { (window as any).triggerVisualAlert?.({ message: msg }); } catch (_) {}
         try { (window as any).speak?.(msg); } catch (_) {}
       } else {
+        const insertedId = (data && data[0] && data[0].id) ? data[0].id : null;
+
+        // Crear relaciones en contenido_leccion y leccion_seccion
+        if (insertedId && form.leccion_id) {
+          try {
+            // 1) Crear registro en contenido_leccion (join table)
+            await supabase.from("contenido_leccion").insert([{
+              contenido_id: insertedId,
+              leccion_id: form.leccion_id,
+              orden: form.orden ?? 1,
+            }]);
+
+            // 2) Obtener el siguiente orden disponible para leccion_seccion
+            const { data: maxOrdenData } = await supabase
+              .from("leccion_seccion")
+              .select("orden")
+              .eq("leccion_id", form.leccion_id)
+              .order("orden", { ascending: false })
+              .limit(1);
+            const nextOrden = (maxOrdenData?.[0]?.orden ?? 0) + 10;
+
+            // 3) Crear registro en leccion_seccion para que el estudiante pueda ver el contenido
+            await supabase.from("leccion_seccion").insert([{
+              leccion_id: form.leccion_id,
+              tipo: "contenido",
+              contenido_id: insertedId,
+              prueba_id: null,
+              modelo_id: null,
+              orden: nextOrden,
+              es_obligatorio: true,
+              requisitos: [],
+              titulo_seccion: form.title || null,
+              descripcion_seccion: form.description || null,
+            }]);
+          } catch (relErr) {
+            console.warn("Error creando relaciones contenido_leccion/leccion_seccion:", relErr);
+          }
+        }
+
         const msg = t('addcontent.toast.saveSuccess') || 'Registro guardado correctamente';
         toast.success(msg);
         try { (window as any).triggerVisualAlert?.({ message: 'Registro guardado' }); } catch (_) {}
@@ -489,17 +529,17 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
         await fetchLeccionesAvailable();
         // remove saved leccion from pending (because it's now referenced by saved content)
         setPendingLecciones((prev) => prev.filter((x) => x !== (form.leccion_id ?? -1)));
-        // After inserted, the data variable contains the inserted id(s)
-        const insertedId = (data && data[0] && data[0].id) ? data[0].id : null;
         if (insertedId) {
           // Provide undo toast that removes the DB record
           toast(({ id: toastId }) => (
             <div className="flex items-center justify-between">
               <div>Contenido guardado</div>
               <button className="ml-3 underline" onClick={async () => {
-                // Undo: delete the newly inserted content
+                // Undo: delete the newly inserted content (CASCADE deletes contenido_leccion)
                 const { error } = await supabase.from('contenido').delete().eq('id', insertedId);
                 if (!error) {
+                  // Also clean up leccion_seccion
+                  await supabase.from('leccion_seccion').delete().eq('contenido_id', insertedId);
                   toast.dismiss(toastId);
                   toast.success(t('undoSuccess') || 'Deshecho');
                   try { (window as any).triggerVisualAlert?.({ message: t('undoSuccess') }); } catch (_) {}
@@ -666,235 +706,381 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
     }
   };
 
+  const styledInput = "w-full border border-gray-300 px-4 py-2.5 rounded-lg text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all placeholder-gray-400";
+  const styledSelect = `${styledInput} appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:18px] bg-[right_12px_center] bg-no-repeat pr-10`;
+
   return (
-    <main className="relative min-h-screen flex flex-col items-center justify-start">
-      <img src={heroImage} alt="Fondo" className="absolute inset-0 w-full h-full object-cover opacity-70" />
-      <div className={`absolute inset-0 ${highContrast ? "bg-black/50" : "bg-white/20"}`}></div>
+    <main className="relative min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Decorative background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-200/30 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 -left-20 w-60 h-60 bg-indigo-200/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-purple-200/20 rounded-full blur-3xl" />
+      </div>
 
-      <div className="relative z-10 w-full max-w-4xl p-6 mt-12 space-y-8">
-        {/* Formulario */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div ref={modalRef} className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800">{t("addcontent.formTitle")}</h2>
-            <div className="flex gap-2">
-              <button type="button" className="px-3 py-2 rounded bg-gray-200 text-black" onClick={() => setHelpOpen(true)}>{t('help') || 'Ayuda'}</button>
-            </div>
+      <div className={`relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 ${highContrast ? '[&_*]:!border-gray-900' : ''}`}>
+
+        {/* ═══════════════════════════════════════════════════════
+            HEADER
+        ═══════════════════════════════════════════════════════ */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className={`${textSizeLarge ? 'text-3xl' : 'text-2xl'} font-bold text-gray-900 tracking-tight`}>
+              {t("addcontent.formTitle")}
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">{t("addcontent.form.headerSubtitle") || "Crea y organiza contenido educativo para tus lecciones"}</p>
           </div>
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 shadow-sm transition-all text-sm font-medium"
+            onClick={() => setHelpOpen(true)}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            {t('help') || 'Ayuda'}
+          </button>
+        </div>
 
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); saveRecord(); }}>
-            {/* Selector de lección + botón crear */}
-            <div className={`${textSizeLarge ? 'text-lg' : 'text-sm'}`}>
-              <label className="block mb-1">Lección</label>
-              <div className="flex items-center gap-2">
-                <select
-                  className={inputClass}
-                  value={form.leccion_id ?? ""}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, leccion_id: e.target.value ? parseId(e.target.value) ?? undefined : undefined }))
-                  }
-                >
-                  <option value="">{t("addcontent.form.selectLesson") ?? "Selecciona una lección"}</option>
-                  {lecciones.map((l) => (
-                    <option key={String(l.id)} value={String(l.id)}>
-                      {l.titulo}
-                    </option>
-                  ))}
-                </select>
+        {/* ═══════════════════════════════════════════════════════
+            FORMULARIO
+        ═══════════════════════════════════════════════════════ */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-gray-200/50 border border-white/60 overflow-hidden">
+          <form ref={modalRef} onSubmit={(e) => { e.preventDefault(); saveRecord(); }}>
 
-                {/* Botón para abrir modal de creación de lección */}
-                <button
-                  type="button"
-                  onClick={() => { setEditingLeccion(null); setShowCreateLessonModal(true); }}
-                  className="px-3 py-2 rounded bg-green-500 text-white hover:bg-green-600"
-                >
-                  + {t("addcontent.form.createLesson") ?? "Nueva lección"}
-                </button>
-                {/* Botón para editar la lección seleccionada (si existe) */}
-                {form.leccion_id && (
+            {/* ── Sección 1: Lección ───────────────────────── */}
+            <div className="px-6 pt-6 pb-5 border-b border-gray-100">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+                </div>
+                <h3 className={`${textSizeLarge ? 'text-lg' : 'text-base'} font-semibold text-gray-800`}>
+                  {t("addcontent.form.lessonSection") || "Lección asociada"}
+                </h3>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex-1">
+                  <select
+                    className={styledSelect}
+                    value={form.leccion_id ?? ""}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, leccion_id: e.target.value ? parseId(e.target.value) ?? undefined : undefined }))
+                    }
+                  >
+                    <option value="">{t("addcontent.form.selectLesson") ?? "Selecciona una lección"}</option>
+                    {lecciones.map((l) => (
+                      <option key={String(l.id)} value={String(l.id)}>
+                        {l.titulo}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      // find the leccion object and open modal in edit mode
-                      const l = lecciones.find((x) => x.id === form.leccion_id) ?? null;
-                      setEditingLeccion(l);
-                      setShowCreateLessonModal(true);
-                    }}
-                    className="px-3 py-2 rounded bg-yellow-300 text-black hover:bg-yellow-400"
+                    onClick={() => { setEditingLeccion(null); setShowCreateLessonModal(true); }}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm transition-all text-sm font-medium whitespace-nowrap"
                   >
-                    {t('teacher.edit') || 'Editar lección'}
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    {t("addcontent.form.createLesson") ?? "Nueva lección"}
                   </button>
-                )}
-              </div>
-              {errors.leccion_id && <p className="text-red-600 text-sm mt-1">{errors.leccion_id}</p>}
-            </div>
-
-            {/* Campos de formulario */}
-            <div>
-              <label className="block mb-1">{t("addcontent.form.title")}</label>
-              <input className={inputClass} value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
-              {errors.title && <p className="text-red-600 text-sm mt-1">{errors.title}</p>}
-            </div>
-
-            <div>
-              <label className="block mb-1">{t("addcontent.form.description")}</label>
-              <textarea className={inputClass} value={form.description} rows={3} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
-            </div>
-
-            {/* Mantengo inputs UI extra no persistidos en DB */}
-            <div>
-              <label className="block mb-1">{t("addcontent.form.type")}</label>
-              <select className={inputClass} value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
-                {typeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-              </select>
-            </div>
-
-            <div className="relative">
-              <label className="block mb-1">{t("addcontent.form.author")}</label>
-              <input
-                className={inputClass}
-                value={form.author}
-                onChange={(e) => handleAuthorChange(e.target.value)}
-                onKeyDown={(e) => handleAuthorKeyDown(e)}
-              />
-              {showAuthorSuggestions && filteredAuthorSuggestions.length > 0 && (
-                <div className="absolute left-0 z-20 bg-white border rounded mt-1 p-2 flex gap-2 max-w-full overflow-auto">
-                  {filteredAuthorSuggestions.map((a, i) => (
-                    <button key={a} type="button" className={`px-3 py-1 rounded-full ${i === authorActiveIndex ? 'bg-gray-200' : 'bg-gray-100'}`} onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => setAuthorActiveIndex(i)} onClick={() => insertAuthorSuggestion(a)}>
-                      {a}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div>
-              <label className="block mb-1">{t("addcontent.form.difficulty")}</label>
-              <select className={inputClass} value={form.difficulty} onChange={(e) => setForm((f) => ({ ...f, difficulty: e.target.value as Difficulty }))}>
-                <option value="fácil">{t("addcontent.form.difficultyOptions.easy")}</option>
-                <option value="media">{t("addcontent.form.difficultyOptions.medium")}</option>
-                <option value="difícil">{t("addcontent.form.difficultyOptions.hard")}</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block mb-1">{t("addcontent.form.tags")}</label>
-              <div className="flex flex-wrap gap-2 mb-2">
-                {form.tags.map((tag) => (
-                  <span key={tag} className="bg-blue-200 text-blue-800 px-2 py-1 rounded-full text-xs">
-                    {tag} <button type="button" className="ml-1 text-xs" onClick={() => removeTag(tag)}>×</button>
-                  </span>
-                ))}
-              </div>
-              <input className={inputClass} value={tagInput} onChange={(e) => handleTagInputChange(e.target.value)} onKeyDown={(e) => {
-                if (showTagsSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
-                  e.preventDefault();
-                  setTagActiveIndex((i) => Math.min(i + 1, filteredTagSuggestions.length - 1));
-                  return;
-                }
-                if (showTagsSuggestions && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
-                  e.preventDefault();
-                  setTagActiveIndex((i) => Math.max(i - 1, 0));
-                  return;
-                }
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (showTagsSuggestions && filteredTagSuggestions[tagActiveIndex]) {
-                    insertTagSuggestion(filteredTagSuggestions[tagActiveIndex]);
-                  } else {
-                    addTag(tagInput);
-                  }
-                  return;
-                }
-                if (e.key === 'Tab') {
-                  if (showTagsSuggestions && filteredTagSuggestions[tagActiveIndex]) {
-                    e.preventDefault();
-                    insertTagSuggestion(filteredTagSuggestions[tagActiveIndex]);
-                    focusNextField(e.currentTarget as HTMLElement);
-                  }
-                }
-              }} />
-              {showTagsSuggestions && filteredTagSuggestions.length > 0 && (
-                <div className="mt-2 flex gap-2 items-center">
-                  {filteredTagSuggestions.map((t, i) => (
+                  {form.leccion_id && (
                     <button
-                      key={t}
                       type="button"
-                      className={`px-2 py-1 rounded-full text-xs ${i === tagActiveIndex ? 'bg-gray-200' : 'bg-gray-100'}`}
-                      onMouseEnter={() => setTagActiveIndex(i)}
-                      onClick={() => insertTagSuggestion(t)}
+                      onClick={() => {
+                        const l = lecciones.find((x) => x.id === form.leccion_id) ?? null;
+                        setEditingLeccion(l);
+                        setShowCreateLessonModal(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200 transition-all text-sm font-medium whitespace-nowrap"
                     >
-                      {t}
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      {t('teacher.edit') || 'Editar'}
                     </button>
-                  ))}
+                  )}
                 </div>
+              </div>
+              {errors.leccion_id && (
+                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                  {errors.leccion_id}
+                </p>
               )}
             </div>
 
-            <div>
-              <label className="block mb-1">{t("addcontent.form.resources")}</label>
-              {form.resources.map((r, i) => (
-                <div key={i} className="flex gap-2 mb-2">
-                  <input className={inputClass} value={r} onChange={(e) => setResource(i, e.target.value)} />
-                  <button type="button" className="text-red-500" onClick={() => removeResource(i)}>×</button>
+            {/* ── Sección 2: Información básica ───────────── */}
+            <div className="px-6 pt-5 pb-5 border-b border-gray-100">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
-              ))}
-              <button type="button" className="underline text-sm" onClick={addResource}>{t("addcontent.form.addResource")}</button>
+                <h3 className={`${textSizeLarge ? 'text-lg' : 'text-base'} font-semibold text-gray-800`}>
+                  {t("addcontent.form.basicInfo") || "Información básica"}
+                </h3>
+              </div>
+
+              <div className="space-y-4">
+                {/* Título */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("addcontent.form.title")}</label>
+                  <input
+                    className={styledInput}
+                    value={form.title}
+                    onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                    placeholder={t("addcontent.form.titlePlaceholder") || "Ej: Estructura molecular del agua"}
+                  />
+                  {errors.title && (
+                    <p className="mt-1.5 text-sm text-red-600 flex items-center gap-1">
+                      <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                      {errors.title}
+                    </p>
+                  )}
+                </div>
+
+                {/* Descripción */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("addcontent.form.description")}</label>
+                  <textarea
+                    className={`${styledInput} resize-none`}
+                    value={form.description}
+                    rows={3}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    placeholder={t("addcontent.form.descriptionPlaceholder") || "Describe el contenido de forma breve..."}
+                  />
+                </div>
+
+                {/* Tipo + Dificultad (side by side) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("addcontent.form.type")}</label>
+                    <select className={styledSelect} value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}>
+                      {typeOptions.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("addcontent.form.difficulty")}</label>
+                    <select className={styledSelect} value={form.difficulty} onChange={(e) => setForm((f) => ({ ...f, difficulty: e.target.value as Difficulty }))}>
+                      <option value="fácil">{t("addcontent.form.difficultyOptions.easy")}</option>
+                      <option value="media">{t("addcontent.form.difficultyOptions.medium")}</option>
+                      <option value="difícil">{t("addcontent.form.difficultyOptions.hard")}</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Autor */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("addcontent.form.author")}</label>
+                  <input
+                    className={styledInput}
+                    value={form.author}
+                    onChange={(e) => handleAuthorChange(e.target.value)}
+                    onKeyDown={(e) => handleAuthorKeyDown(e)}
+                    placeholder={t("addcontent.form.authorPlaceholder") || "Nombre del autor"}
+                  />
+                  {showAuthorSuggestions && filteredAuthorSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 z-20 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-1.5 flex flex-wrap gap-1.5">
+                      {filteredAuthorSuggestions.map((a, i) => (
+                        <button
+                          key={a}
+                          type="button"
+                          className={`px-3 py-1.5 rounded-md text-sm transition-colors ${i === authorActiveIndex ? 'bg-blue-50 text-blue-700 font-medium' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'}`}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onMouseEnter={() => setAuthorActiveIndex(i)}
+                          onClick={() => insertAuthorSuggestion(a)}
+                        >
+                          {a}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
-            {/* Pestañas de contenido multimedia */}
-            <div className="border-t pt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                {t("addcontent.form.multimediaContent") || "Contenido Multimedia"}
-              </label>
-              <div className="flex gap-2 mb-4 border-b">
+            {/* ── Sección 3: Etiquetas y Recursos ─────────── */}
+            <div className="px-6 pt-5 pb-5 border-b border-gray-100">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" /></svg>
+                </div>
+                <h3 className={`${textSizeLarge ? 'text-lg' : 'text-base'} font-semibold text-gray-800`}>
+                  {t("addcontent.form.tagsAndResources") || "Etiquetas y recursos"}
+                </h3>
+              </div>
+
+              <div className="space-y-4">
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("addcontent.form.tags")}</label>
+                  {form.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {form.tags.map((tag) => (
+                        <span key={tag} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full text-xs font-medium">
+                          {tag}
+                          <button type="button" className="text-blue-400 hover:text-blue-600 transition-colors" onClick={() => removeTag(tag)}>
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    className={styledInput}
+                    value={tagInput}
+                    onChange={(e) => handleTagInputChange(e.target.value)}
+                    placeholder={t("addcontent.form.tagPlaceholder") || "Escribe y presiona Enter para agregar..."}
+                    onKeyDown={(e) => {
+                      if (showTagsSuggestions && (e.key === 'ArrowDown' || e.key === 'ArrowRight')) {
+                        e.preventDefault();
+                        setTagActiveIndex((i) => Math.min(i + 1, filteredTagSuggestions.length - 1));
+                        return;
+                      }
+                      if (showTagsSuggestions && (e.key === 'ArrowUp' || e.key === 'ArrowLeft')) {
+                        e.preventDefault();
+                        setTagActiveIndex((i) => Math.max(i - 1, 0));
+                        return;
+                      }
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (showTagsSuggestions && filteredTagSuggestions[tagActiveIndex]) {
+                          insertTagSuggestion(filteredTagSuggestions[tagActiveIndex]);
+                        } else {
+                          addTag(tagInput);
+                        }
+                        return;
+                      }
+                      if (e.key === 'Tab') {
+                        if (showTagsSuggestions && filteredTagSuggestions[tagActiveIndex]) {
+                          e.preventDefault();
+                          insertTagSuggestion(filteredTagSuggestions[tagActiveIndex]);
+                          focusNextField(e.currentTarget as HTMLElement);
+                        }
+                      }
+                    }}
+                  />
+                  {showTagsSuggestions && filteredTagSuggestions.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {filteredTagSuggestions.map((tg, i) => (
+                        <button
+                          key={tg}
+                          type="button"
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${i === tagActiveIndex ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                          onMouseEnter={() => setTagActiveIndex(i)}
+                          onClick={() => insertTagSuggestion(tg)}
+                        >
+                          + {tg}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Resources */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">{t("addcontent.form.resources")}</label>
+                  <div className="space-y-2">
+                    {form.resources.map((r, i) => (
+                      <div key={i} className="flex gap-2 items-center">
+                        <div className="relative flex-1">
+                          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                          <input
+                            className={`${styledInput} pl-10`}
+                            value={r}
+                            onChange={(e) => setResource(i, e.target.value)}
+                            placeholder="https://..."
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="p-2 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          onClick={() => removeResource(i)}
+                        >
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    className="mt-2 inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    onClick={addResource}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    {t("addcontent.form.addResource")}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Sección 4: Contenido Multimedia ─────────── */}
+            <div className="px-6 pt-5 pb-5 border-b border-gray-100">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                </div>
+                <h3 className={`${textSizeLarge ? 'text-lg' : 'text-base'} font-semibold text-gray-800`}>
+                  {t("addcontent.form.multimediaContent") || "Contenido Multimedia"}
+                </h3>
+              </div>
+
+              {/* Tabs */}
+              <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-4">
                 <button
                   type="button"
                   onClick={() => setActiveTab('content')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'content' 
-                      ? 'border-blue-500 text-blue-600' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                    activeTab === 'content'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                   {t("addcontent.tabs.text") || "Texto"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('slides')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'slides' 
-                      ? 'border-blue-500 text-blue-600' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                    activeTab === 'slides'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {t("addcontent.tabs.slides") || "Diapositivas"} {(form.slides?.length ?? 0) > 0 && `(${form.slides?.length})`}
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                  {t("addcontent.tabs.slides") || "Diapositivas"}
+                  {(form.slides?.length ?? 0) > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">{form.slides?.length}</span>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab('media')}
-                  className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    activeTab === 'media' 
-                      ? 'border-blue-500 text-blue-600' 
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                    activeTab === 'media'
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
-                  {t("addcontent.tabs.media") || "Media"} {(form.media_files?.length ?? 0) > 0 && `(${form.media_files?.length})`}
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  {t("addcontent.tabs.media") || "Media"}
+                  {(form.media_files?.length ?? 0) > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-semibold">{form.media_files?.length}</span>
+                  )}
                 </button>
               </div>
 
-              {/* Contenido según pestaña activa */}
+              {/* Tab content */}
               {activeTab === 'content' && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600">
+                <div className="p-5 bg-gray-50/80 rounded-xl border border-gray-100 text-center">
+                  <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  <p className="text-sm text-gray-500">
                     {t("addcontent.tabs.textDescription") || "El texto descriptivo se edita arriba en el campo 'Descripción'."}
                   </p>
                 </div>
               )}
 
               {activeTab === 'slides' && (
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <SlideEditor 
-                    slides={form.slides || []} 
+                <div className="p-4 bg-gray-50/80 rounded-xl border border-gray-100">
+                  <SlideEditor
+                    slides={form.slides || []}
                     onChange={(newSlides) => setForm(f => ({ ...f, slides: newSlides }))}
                     availableModelos={availableModelos}
                   />
@@ -902,7 +1088,7 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
               )}
 
               {activeTab === 'media' && (
-                <div className="p-4 bg-gray-50 rounded-lg">
+                <div className="p-4 bg-gray-50/80 rounded-xl border border-gray-100">
                   <MultiMediaUploader
                     mediaFiles={form.media_files || []}
                     onMediaFilesChange={(files) => setForm(f => ({ ...f, media_files: files }))}
@@ -912,79 +1098,159 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-end mt-4">
-              <button type="button" className="w-full sm:w-auto px-3 py-3 sm:py-2 rounded bg-gray-200 text-black" onClick={clearForm}>{t("addcontent.form.clear")}</button>
-                <div className="flex-1">
-                  {saving && (
-                    <div className="mb-2 h-2 bg-gray-200 rounded overflow-hidden">
-                      <div className="h-full bg-blue-600" style={{ width: `${saveProgress}%` }} />
-                    </div>
-                  )}
-                  <div className="flex gap-2 items-center">
-                    <button type="button" className="px-3 py-2 rounded bg-gray-100 text-gray-700" onClick={() => { try { (window as any).speak?.(`${form.title}. ${form.description ?? ''}`); } catch (e) {}; toast.success(t('addcontent.form.reading') || 'Reading...'); }}>{t('addcontent.read') || 'Read'}</button>
-                    <button type="submit" className="px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
-                {isEditing ? t("addcontent.form.update") : t("addcontent.form.save")}
-                    </button>
+            {/* ── Footer: Acciones ────────────────────────── */}
+            <div className="px-6 py-4 bg-gray-50/50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-all text-sm font-medium"
+                  onClick={clearForm}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                  {t("addcontent.form.clear")}
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-all text-sm font-medium"
+                  onClick={() => { try { (window as any).speak?.(`${form.title}. ${form.description ?? ''}`); } catch (e) {}; toast.success(t('addcontent.form.reading') || 'Reading...'); }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /></svg>
+                  {t('addcontent.read') || 'Leer'}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {saving && (
+                  <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 rounded-full transition-all duration-300 ease-out" style={{ width: `${saveProgress}%` }} />
                   </div>
-                </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 shadow-sm shadow-blue-200 transition-all text-sm font-semibold"
+                >
+                  {saving ? (
+                    <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  )}
+                  {isEditing ? t("addcontent.form.update") : t("addcontent.form.save")}
+                </button>
+              </div>
             </div>
           </form>
         </div>
 
-        {/* Tabla de registros */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
+        {/* ═══════════════════════════════════════════════════════
+            TABLA DE REGISTROS
+        ═══════════════════════════════════════════════════════ */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg shadow-gray-200/50 border border-white/60 overflow-hidden">
+          <div className="px-6 pt-5 pb-4 border-b border-gray-100">
+            <h3 className={`${textSizeLarge ? 'text-lg' : 'text-base'} font-semibold text-gray-800 mb-3`}>
+              {t("addcontent.table.title") || "Contenidos existentes"}
+            </h3>
+            <div className="relative">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <input
+                type="text"
+                placeholder={t("addcontent.table.filter")}
+                className={`${styledInput} pl-10`}
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              />
+            </div>
+          </div>
+
           {/* Mobile: stacked cards */}
-          <div className="sm:hidden space-y-3 mb-4">
+          <div className="sm:hidden p-4 space-y-3">
             {filteredRecords.length === 0 ? (
-              <div className="border p-3 rounded-md text-center">{t("addcontent.table.noRecords")}</div>
+              <div className="text-center py-8 text-gray-400 text-sm">{t("addcontent.table.noRecords")}</div>
             ) : (
               filteredRecords.map((r) => (
-                <div key={r.id} className="border p-3 rounded-md">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-semibold">{r.title}</h4>
-                      <p className="text-xs text-gray-500">{getTypeLabel(r.type)} • {r.author}</p>
+                <div key={r.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100 hover:border-gray-200 transition-colors">
+                  <div className="flex justify-between items-start gap-2">
+                    <div className="min-w-0">
+                      <h4 className="font-semibold text-gray-900 truncate">{r.title}</h4>
+                      <p className="text-xs text-gray-500 mt-0.5">{getTypeLabel(r.type)} • {r.author}</p>
                     </div>
-                    <div className={`text-xs px-2 py-1 rounded ${difficultyColor(r.difficulty)}`}>{r.difficulty}</div>
+                    <span className={`flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${difficultyColor(r.difficulty)}`}>{r.difficulty}</span>
                   </div>
+                  {r.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {r.tags.slice(0, 3).map(tag => (
+                        <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tag}</span>
+                      ))}
+                      {r.tags.length > 3 && <span className="text-xs text-gray-400">+{r.tags.length - 3}</span>}
+                    </div>
+                  )}
                   <div className="mt-3 flex gap-2">
-                    <button className="flex-1 px-3 py-2 bg-yellow-200 rounded text-sm" onClick={() => editRecord(r)}>{t("addcontent.table.actions.edit")}</button>
-                    <button className="flex-1 px-3 py-2 bg-red-400 rounded text-sm text-white" onClick={() => deleteRecord(r.id)}>{t("addcontent.table.actions.delete")}</button>
+                    <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-sm font-medium hover:bg-amber-100 transition-colors" onClick={() => editRecord(r)}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      {t("addcontent.table.actions.edit")}
+                    </button>
+                    <button className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors" onClick={() => deleteRecord(r.id)}>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      {t("addcontent.table.actions.delete")}
+                    </button>
                   </div>
                 </div>
               ))
             )}
           </div>
 
+          {/* Desktop: table */}
           <div className="hidden sm:block overflow-x-auto">
-            <input type="text" placeholder={t("addcontent.table.filter")} className="mb-4 w-full border px-3 py-2 rounded" value={filter} onChange={(e) => setFilter(e.target.value)} />
-            <table className="min-w-full border-collapse border text-black">
+            <table className="w-full">
               <thead>
-                <tr className="bg-gray-200">
-                  <th className="border p-2">{t("addcontent.table.columns.title")}</th>
-                  <th className="border p-2">{t("addcontent.table.columns.type")}</th>
-                  <th className="border p-2">{t("addcontent.table.columns.difficulty")}</th>
-                  <th className="border p-2">{t("addcontent.table.columns.tags")}</th>
-                  <th className="border p-2">{t("addcontent.table.columns.actions")}</th>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t("addcontent.table.columns.title")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t("addcontent.table.columns.type")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t("addcontent.table.columns.difficulty")}</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t("addcontent.table.columns.tags")}</th>
+                  <th className="text-right px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{t("addcontent.table.columns.actions")}</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-50">
                 {filteredRecords.length === 0 ? (
-                  <tr><td colSpan={5} className="border p-2 text-center">{t("addcontent.table.noRecords")}</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">{t("addcontent.table.noRecords")}</td></tr>
                 ) : (
                   filteredRecords.map((r) => (
-                    <tr key={r.id} className="hover:bg-gray-100">
-                      <td className="border p-2">{r.title}</td>
-                      <td className="border p-2">{getTypeLabel(r.type)}</td>
-                      <td className={`border p-2 ${difficultyColor(r.difficulty)}`}>{r.difficulty}</td>
-                      <td className="border p-2">{r.tags.join(", ")}</td>
-                      <td className="border p-2 flex gap-2">
-                        <button className="px-2 py-1 bg-yellow-200 rounded text-sm" onClick={() => editRecord(r)}>
-                          {t("addcontent.table.actions.edit")}
-                        </button>
-                        <button className="px-2 py-1 bg-red-400 rounded text-sm text-white" onClick={() => deleteRecord(r.id)}>
-                          {t("addcontent.table.actions.delete")}
-                        </button>
+                    <tr key={r.id} className="hover:bg-blue-50/40 transition-colors group">
+                      <td className="px-6 py-3.5">
+                        <span className="font-medium text-gray-900 text-sm">{r.title}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-sm text-gray-600">{getTypeLabel(r.type)}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-block text-xs px-2.5 py-1 rounded-full font-medium ${difficultyColor(r.difficulty)}`}>{r.difficulty}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex flex-wrap gap-1">
+                          {r.tags.slice(0, 3).map(tag => (
+                            <span key={tag} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{tag}</span>
+                          ))}
+                          {r.tags.length > 3 && <span className="text-xs text-gray-400">+{r.tags.length - 3}</span>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-3.5 text-right">
+                        <div className="flex gap-1.5 justify-end opacity-70 group-hover:opacity-100 transition-opacity">
+                          <button
+                            className="p-2 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors"
+                            onClick={() => editRecord(r)}
+                            title={t("addcontent.table.actions.edit")}
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button
+                            className="p-2 rounded-lg text-red-500 hover:bg-red-50 transition-colors"
+                            onClick={() => deleteRecord(r.id)}
+                            title={t("addcontent.table.actions.delete")}
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -995,25 +1261,26 @@ export default function AddContentPage({ textSizeLarge, highContrast, }: { textS
         </div>
 
       </div>
-      {/* Modal de crear lección (renderiza dentro del JSX) */}
+
+      {/* Modal de crear lección */}
       <CreateLessonModal
         open={showCreateLessonModal}
         onClose={() => { setShowCreateLessonModal(false); setEditingLeccion(null); }}
         onCreated={(id) => { handleLessonCreated(id); setEditingLeccion(null); }}
-        onUpdated={() => { /* refresh list and keep selection */ fetchLeccionesAvailable(); setEditingLeccion(null); const msg = t('createLesson.success.updated') || 'Lección actualizada'; toast.success(msg); }}
+        onUpdated={() => { fetchLeccionesAvailable(); setEditingLeccion(null); const msg = t('createLesson.success.updated') || 'Lección actualizada'; toast.success(msg); }}
         parentLeccionId={form.leccion_id}
         leccion={editingLeccion}
       />
-      {/* Help modal for the page */}
+      {/* Help modal */}
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} title={t('addContentHelpTitle') || 'Ayuda - Añadir Contenido'}>
-        <div>
-          <p><strong>{t('shortcuts') || 'Atajos'}</strong></p>
-          <ul className="list-disc ml-5">
-            <li><strong>Ctrl/Cmd + S</strong>: {t('shortcut.save') || 'Guardar'}</li>
-            <li><strong>Escape</strong>: {t('shortcut.close') || 'Cerrar modal/ayuda'}</li>
-            <li><strong>Arrow Up/Down</strong>: {t('shortcut.navigateSuggestions') || 'Navegar sugerencias'}</li>
-            <li><strong>Enter</strong>: {t('shortcut.applySuggestion') || 'Aplicar sugerencia'}</li>
-            <li><strong>Tab</strong>: {t('shortcut.tabNavigate') || 'Tab: Aceptar sugerencia y avanzar'}</li>
+        <div className="space-y-3">
+          <p className="font-semibold text-gray-800">{t('shortcuts') || 'Atajos'}</p>
+          <ul className="space-y-1.5 text-sm text-gray-600">
+            <li className="flex items-center gap-2"><kbd className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs font-mono">Ctrl+S</kbd> {t('shortcut.save') || 'Guardar'}</li>
+            <li className="flex items-center gap-2"><kbd className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs font-mono">Esc</kbd> {t('shortcut.close') || 'Cerrar modal/ayuda'}</li>
+            <li className="flex items-center gap-2"><kbd className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs font-mono">↑ ↓</kbd> {t('shortcut.navigateSuggestions') || 'Navegar sugerencias'}</li>
+            <li className="flex items-center gap-2"><kbd className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs font-mono">Enter</kbd> {t('shortcut.applySuggestion') || 'Aplicar sugerencia'}</li>
+            <li className="flex items-center gap-2"><kbd className="px-2 py-0.5 bg-gray-100 border border-gray-200 rounded text-xs font-mono">Tab</kbd> {t('shortcut.tabNavigate') || 'Aceptar sugerencia y avanzar'}</li>
           </ul>
         </div>
       </HelpModal>

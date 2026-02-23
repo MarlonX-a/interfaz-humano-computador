@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { supabase } from '../lib/supabaseClient';
-import { updateModeloRA } from '../lib/data/modelos';
-import { listLecciones } from '../lib/data/lecciones';
-import type { ModeloRA, Leccion } from '../types/db';
+import { supabase } from '@/shared/lib/supabaseClient';
+import { updateModeloRA } from '@/features/models3d/services/modelos';
+import { listLecciones } from '@/features/lessons/services/lecciones';
+import type { ModeloRA, Leccion } from '@/shared/types';
 import { X, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 
