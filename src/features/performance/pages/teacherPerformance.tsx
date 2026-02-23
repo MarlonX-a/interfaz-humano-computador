@@ -19,6 +19,11 @@ import StudentPerformanceDetail from '@/features/performance/components/StudentP
 import ExportButton from '@/features/performance/components/ExportButton';
 import { Filter, Download } from 'lucide-react';
 
+interface FilterOption {
+  id: number;
+  titulo: string;
+}
+
 export default function TeacherPerformance() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -31,6 +36,13 @@ export default function TeacherPerformance() {
   const [selectedStudent, setSelectedStudent] = useState<StudentDetail | null>(null);
   const [showStudentDetail, setShowStudentDetail] = useState(false);
   const [loadingStudentDetail, setLoadingStudentDetail] = useState(false);
+
+  // Opciones de filtros
+  const [leccionOptions, setLeccionOptions] = useState<FilterOption[]>([]);
+  const [pruebaOptions, setPruebaOptions] = useState<FilterOption[]>([]);
+  // Estudiantes que tienen progreso/resultado en la lección/prueba filtrada
+  const [filteredByLeccion, setFilteredByLeccion] = useState<Set<string> | null>(null);
+  const [filteredByPrueba, setFilteredByPrueba] = useState<Set<string> | null>(null);
 
   // Filtros
   const [filters, setFilters] = useState({
@@ -58,6 +70,7 @@ export default function TeacherPerformance() {
         const adminStatus = role === 'admin';
         setIsAdmin(adminStatus);
         await loadData(session.user.id, adminStatus);
+        await loadFilterOptions(session.user.id, adminStatus);
       } catch (error: any) {
         console.error('Error in ensure:', error);
         toast.error(error?.message || t('teacher.performance.loadError') || 'Error al cargar datos');
@@ -85,6 +98,62 @@ export default function TeacherPerformance() {
     }
   };
 
+  const loadFilterOptions = async (teacherId: string, admin: boolean) => {
+    try {
+      // Load lecciones
+      let lecQuery = supabase.from('leccion').select('id, titulo');
+      if (!admin) lecQuery = lecQuery.eq('created_by', teacherId);
+      const { data: lecciones } = await lecQuery;
+      setLeccionOptions((lecciones || []).map((l: any) => ({ id: l.id, titulo: l.titulo })));
+
+      // Load pruebas (in teacher's lecciones)
+      const lecIds = (lecciones || []).map((l: any) => l.id);
+      let pruebas: any[] = [];
+      if (admin) {
+        const { data } = await supabase.from('prueba').select('id, titulo');
+        pruebas = data || [];
+      } else if (lecIds.length > 0) {
+        const { data } = await supabase.from('prueba').select('id, titulo').in('leccion_id', lecIds);
+        pruebas = data || [];
+      }
+      setPruebaOptions(pruebas.map((p: any) => ({ id: p.id, titulo: p.titulo })));
+    } catch (e) {
+      console.error('Error loading filter options', e);
+    }
+  };
+
+  // When lesson filter changes, find students with progress on that lesson
+  useEffect(() => {
+    if (!filters.leccion_id) {
+      setFilteredByLeccion(null);
+      return;
+    }
+    const lecId = Number(filters.leccion_id);
+    supabase
+      .from('progreso')
+      .select('usuario_id')
+      .eq('leccion_id', lecId)
+      .then(({ data }) => {
+        setFilteredByLeccion(new Set((data || []).map((d: any) => d.usuario_id)));
+      });
+  }, [filters.leccion_id]);
+
+  // When test filter changes, find students with results on that test
+  useEffect(() => {
+    if (!filters.prueba_id) {
+      setFilteredByPrueba(null);
+      return;
+    }
+    const prId = Number(filters.prueba_id);
+    supabase
+      .from('resultado_prueba')
+      .select('usuario_id')
+      .eq('prueba_id', prId)
+      .then(({ data }) => {
+        setFilteredByPrueba(new Set((data || []).map((d: any) => d.usuario_id)));
+      });
+  }, [filters.prueba_id]);
+
   const handleViewStudentDetail = async (studentId: string) => {
     if (!userId) return;
     setLoadingStudentDetail(true);
@@ -111,7 +180,12 @@ export default function TeacherPerformance() {
     if (filters.estudiante_id && student.usuario_id !== filters.estudiante_id) {
       return false;
     }
-    // Los filtros de lección y prueba se pueden aplicar aquí si es necesario
+    if (filteredByLeccion && !filteredByLeccion.has(student.usuario_id)) {
+      return false;
+    }
+    if (filteredByPrueba && !filteredByPrueba.has(student.usuario_id)) {
+      return false;
+    }
     return true;
   });
 
@@ -147,7 +221,7 @@ export default function TeacherPerformance() {
         <div className="flex items-center gap-2 mb-3">
           <Filter size={18} className="text-gray-500" />
           <h3 className="text-sm font-medium text-gray-700">
-            {t('teacher.performance.filters') || 'Filtros'}
+            {t('teacher.performance.filters.title') || 'Filtros'}
           </h3>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -178,7 +252,9 @@ export default function TeacherPerformance() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">{t('teacher.performance.allLessons') || 'Todas las lecciones'}</option>
-              {/* TODO: Cargar lecciones del profesor */}
+              {leccionOptions.map((l) => (
+                <option key={l.id} value={l.id}>{l.titulo}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -191,7 +267,9 @@ export default function TeacherPerformance() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">{t('teacher.performance.allTests') || 'Todas las pruebas'}</option>
-              {/* TODO: Cargar pruebas del profesor */}
+              {pruebaOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.titulo}</option>
+              ))}
             </select>
           </div>
         </div>

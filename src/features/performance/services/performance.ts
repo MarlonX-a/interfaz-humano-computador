@@ -1,5 +1,8 @@
 import { supabase } from "@/shared/lib/supabaseClient";
 import type { ResultadoPrueba, Prueba, Leccion, Progreso } from "@/shared/types";
+import { getContentProgressForUserByContentIds } from "@/shared/services/progresos";
+import type { ContentProgress } from "@/shared/services/progresos";
+import { getSeguidoresByContenidos } from "@/shared/services/seguimiento";
 
 export interface StudentPerformance {
   usuario_id: string;
@@ -10,6 +13,10 @@ export interface StudentPerformance {
   aprobados: number;
   reprobados: number;
   lecciones_completadas: number;
+  contenidos_completados: number;
+  contenidos_aprobados: number;
+  contenidos_reprobados: number;
+  contenidos_seguidos: number;
   ultima_actividad: string | null;
 }
 
@@ -67,6 +74,8 @@ export interface StudentDetail {
     puntaje: number | null;
     ultimo_acceso: string | null;
   }>;
+  contenidos: ContentProgress[];
+  contenidos_seguidos_nombres: string[];
   evolucion_puntajes: Array<{
     fecha: string;
     puntaje: number;
@@ -81,9 +90,10 @@ export interface StudentDetail {
 export async function getStudentsByTeacher(teacherId: string, isAdmin: boolean = false): Promise<StudentPerformance[]> {
   let pruebaIds: number[] = [];
   let leccionIds: number[] = [];
+  let contenidoIds: number[] = [];
 
   if (isAdmin) {
-    // Si es admin, obtener todas las pruebas y lecciones
+    // Si es admin, obtener todas las pruebas, lecciones y contenidos
     const { data: todasPruebas, error: pruebasError } = await supabase
       .from("prueba")
       .select("id");
@@ -97,24 +107,38 @@ export async function getStudentsByTeacher(teacherId: string, isAdmin: boolean =
 
     if (leccionesError) throw leccionesError;
     leccionIds = (todasLecciones || []).map((l) => l.id);
+
+    const { data: todosContenidos, error: contenidosError } = await supabase
+      .from("contenido")
+      .select("id");
+    if (contenidosError) throw contenidosError;
+    contenidoIds = (todosContenidos || []).map((c) => c.id);
   } else {
-    // Si es profesor, obtener solo sus pruebas y lecciones
-    const { data: pruebas, error: pruebasError } = await supabase
-      .from("prueba")
-      .select("id")
-      .eq("created_by", teacherId);
-
-    if (pruebasError) throw pruebasError;
-
+    // Si es profesor, obtener sus lecciones y contenidos
     const { data: lecciones, error: leccionesError } = await supabase
       .from("leccion")
       .select("id")
       .eq("created_by", teacherId);
 
     if (leccionesError) throw leccionesError;
-
-    pruebaIds = (pruebas || []).map((p) => p.id);
     leccionIds = (lecciones || []).map((l) => l.id);
+
+    // Obtener pruebas que pertenecen a las lecciones del profesor (no por created_by)
+    if (leccionIds.length > 0) {
+      const { data: pruebas, error: pruebasError } = await supabase
+        .from("prueba")
+        .select("id")
+        .in("leccion_id", leccionIds);
+      if (pruebasError) throw pruebasError;
+      pruebaIds = (pruebas || []).map((p) => p.id);
+    }
+
+    const { data: contenidos, error: contenidosError } = await supabase
+      .from("contenido")
+      .select("id")
+      .eq("created_by", teacherId);
+    if (contenidosError) throw contenidosError;
+    contenidoIds = (contenidos || []).map((c) => c.id);
   }
 
   // Obtener estudiantes que han tomado pruebas del profesor
@@ -145,10 +169,23 @@ export async function getStudentsByTeacher(teacherId: string, isAdmin: boolean =
     });
   }
 
+  // Obtener estudiantes que SIGUEN los contenidos del profesor
+  let followStudentMap = new Map<string, number[]>();
+  if (contenidoIds.length > 0) {
+    followStudentMap = await getSeguidoresByContenidos(contenidoIds);
+  }
+
   // Combinar y obtener IDs únicos de estudiantes
   const studentIds = new Set<string>();
-  testStudentIds.forEach((id) => studentIds.add(id));
-  lessonStudentIds.forEach((id) => studentIds.add(id));
+  if (isAdmin) {
+    // Admin ve todos los estudiantes con cualquier interacción
+    testStudentIds.forEach((id) => studentIds.add(id));
+    lessonStudentIds.forEach((id) => studentIds.add(id));
+    followStudentMap.forEach((_contenidos, id) => studentIds.add(id));
+  } else {
+    // Profesor solo ve estudiantes que SIGUEN sus contenidos
+    followStudentMap.forEach((_contenidos, id) => studentIds.add(id));
+  }
 
   // Obtener perfiles de estudiantes
   const studentIdsArray = Array.from(studentIds);
@@ -224,7 +261,34 @@ export async function getStudentsByTeacher(teacherId: string, isAdmin: boolean =
         : 0;
     const aprobados = resultadosDelProfesor.filter((r: any) => r.aprobado).length;
     const reprobados = totalPruebas - aprobados;
-    const leccionesCompletadas = progresosDelProfesor.filter((p: any) => p.completado).length;
+    // Deduplicate progreso by leccion_id, prioritize completado=true
+    const progresoByLeccionMap = new Map<number, boolean>();
+    progresosDelProfesor.forEach((p: any) => {
+      const prev = progresoByLeccionMap.get(p.leccion_id);
+      if (prev === undefined || (!prev && p.completado)) {
+        progresoByLeccionMap.set(p.leccion_id, !!p.completado);
+      }
+    });
+    const leccionesCompletadas = Array.from(progresoByLeccionMap.values()).filter(Boolean).length;
+
+    // Calcular progreso por contenidos (solo los que el estudiante sigue)
+    let contenidosCompletados = 0;
+    let contenidosAprobados = 0;
+    let contenidosReprobados = 0;
+    const contenidosSeguidos = followStudentMap.get(userId) || [];
+    const contenidosSeguidosCount = contenidosSeguidos.length;
+    // Intersect: only teacher's content that the student follows
+    const contenidosDelEstudiante = contenidoIds.filter(cid => contenidosSeguidos.includes(cid));
+    if (contenidosDelEstudiante.length > 0) {
+      try {
+        const contentProg = await getContentProgressForUserByContentIds(userId, contenidosDelEstudiante);
+        contenidosCompletados = contentProg.filter(c => c.completado).length;
+        contenidosAprobados = contentProg.filter(c => c.aprobado).length;
+        contenidosReprobados = contentProg.filter(c => c.completado && !c.aprobado).length;
+      } catch (e) {
+        console.error('Error computing content progress for', userId, e);
+      }
+    }
 
     // Última actividad
     const ultimasFechas = [
@@ -245,6 +309,10 @@ export async function getStudentsByTeacher(teacherId: string, isAdmin: boolean =
       aprobados,
       reprobados,
       lecciones_completadas: leccionesCompletadas,
+      contenidos_completados: contenidosCompletados,
+      contenidos_aprobados: contenidosAprobados,
+      contenidos_reprobados: contenidosReprobados,
+      contenidos_seguidos: contenidosSeguidosCount,
       ultima_actividad: ultimaActividad,
     });
   }
@@ -271,34 +339,51 @@ export async function getPerformanceByStudent(
   if (profileError) throw profileError;
   if (!profile) return null;
 
-  // Obtener pruebas (todas si es admin, solo del profesor si no)
-  let pruebasQuery = supabase
-    .from("prueba")
-    .select("id, titulo");
-  
+  // Obtener lecciones del profesor (para buscar pruebas en ellas)
+  let leccionIdsForPruebas: number[] = [];
   if (!isAdmin) {
-    pruebasQuery = pruebasQuery.eq("created_by", teacherId);
+    const { data: leccionesTeacher, error: lecTeacherErr } = await supabase
+      .from("leccion")
+      .select("id")
+      .eq("created_by", teacherId);
+    if (lecTeacherErr) throw lecTeacherErr;
+    leccionIdsForPruebas = (leccionesTeacher || []).map((l) => l.id);
   }
 
-  const { data: pruebas, error: pruebasError } = await pruebasQuery;
-
-  if (pruebasError) throw pruebasError;
+  // Obtener pruebas (todas si es admin, las de las lecciones del profesor si no)
+  let pruebas: any[] = [];
+  if (isAdmin) {
+    const { data, error } = await supabase.from("prueba").select("id, titulo");
+    if (error) throw error;
+    pruebas = data || [];
+  } else if (leccionIdsForPruebas.length > 0) {
+    const { data, error } = await supabase
+      .from("prueba")
+      .select("id, titulo")
+      .in("leccion_id", leccionIdsForPruebas);
+    if (error) throw error;
+    pruebas = data || [];
+  }
 
   // Obtener resultados del estudiante en estas pruebas
-  const pruebaIds = (pruebas || []).map((p) => p.id);
-  const { data: resultados, error: resultadosError } = await supabase
-    .from("resultado_prueba")
-    .select("*")
-    .eq("usuario_id", studentId)
-    .in("prueba_id", pruebaIds)
-    .order("completed_at", { ascending: false });
+  const pruebaIds = pruebas.map((p: any) => p.id);
+  let resultados: any[] = [];
+  if (pruebaIds.length > 0) {
+    const { data: resultadosData, error: resultadosError } = await supabase
+      .from("resultado_prueba")
+      .select("*")
+      .eq("usuario_id", studentId)
+      .in("prueba_id", pruebaIds)
+      .order("completed_at", { ascending: false });
 
-  if (resultadosError) throw resultadosError;
+    if (resultadosError) throw resultadosError;
+    resultados = resultadosData || [];
+  }
 
   // Agrupar resultados por prueba
   const pruebasData: StudentDetail["pruebas"] = [];
   for (const prueba of pruebas || []) {
-    const resultadosPrueba = (resultados || []).filter(
+    const resultadosPrueba = resultados.filter(
       (r) => r.prueba_id === prueba.id
     );
     if (resultadosPrueba.length === 0) continue;
@@ -337,31 +422,44 @@ export async function getPerformanceByStudent(
   if (leccionesError) throw leccionesError;
 
   const leccionIds = (lecciones || []).map((l) => l.id);
-  const { data: progresos, error: progresosError } = await supabase
-    .from("progreso")
-    .select("*")
-    .eq("usuario_id", studentId)
-    .in("leccion_id", leccionIds);
+  let progresos: any[] = [];
+  if (leccionIds.length > 0) {
+    const { data: progresosData, error: progresosError } = await supabase
+      .from("progreso")
+      .select("*")
+      .eq("usuario_id", studentId)
+      .in("leccion_id", leccionIds);
 
-  if (progresosError) throw progresosError;
+    if (progresosError) throw progresosError;
+    progresos = progresosData || [];
+  }
 
   const leccionesData: StudentDetail["lecciones"] = [];
   for (const leccion of lecciones || []) {
-    const progreso = (progresos || []).find((p) => p.leccion_id === leccion.id);
-    if (!progreso) continue;
+    // Find all progreso records for this lesson and pick the best one
+    const progresosLeccion = progresos.filter((p: any) => p.leccion_id === leccion.id);
+    if (progresosLeccion.length === 0) continue;
+
+    const completado = progresosLeccion.some((p: any) => p.completado);
+    const mejorPuntaje = Math.max(...progresosLeccion.map((p: any) => p.puntaje ?? 0));
+    const ultimoAcceso = progresosLeccion
+      .map((p: any) => p.fecha_ultimo_acceso)
+      .filter(Boolean)
+      .sort()
+      .reverse()[0] || null;
 
     leccionesData.push({
       leccion_id: leccion.id,
       titulo: leccion.titulo,
-      completada: progreso.completado || false,
-      puntaje: progreso.puntaje,
-      ultimo_acceso: progreso.fecha_ultimo_acceso,
+      completada: completado,
+      puntaje: mejorPuntaje,
+      ultimo_acceso: ultimoAcceso,
     });
   }
 
   // Evolución de puntajes (ordenados por fecha)
-  const evolucionPuntajes: StudentDetail["evolucion_puntajes"] = (resultados || [])
-    .map((r) => {
+  const evolucionPuntajes: StudentDetail["evolucion_puntajes"] = resultados
+    .map((r: any) => {
       const prueba = pruebas?.find((p) => p.id === r.prueba_id);
       return {
         fecha: r.completed_at || r.started_at || "",
@@ -372,12 +470,47 @@ export async function getPerformanceByStudent(
     .filter((e) => e.fecha)
     .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
+  // Progreso por contenidos del profesor/admin — solo los que el estudiante sigue
+  let contenidosData: ContentProgress[] = [];
+  let contenidosSeguidosNombres: string[] = [];
+  try {
+    let queryContenidos = supabase.from("contenido").select("id, titulo");
+    if (!isAdmin) {
+      queryContenidos = queryContenidos.eq("created_by", teacherId);
+    }
+    const { data: contData } = await queryContenidos;
+    const allTeacherContentIds = (contData || []).map((c: any) => c.id);
+
+    if (allTeacherContentIds.length > 0) {
+      // Get content the student follows
+      const { data: segData } = await supabase
+        .from("contenido_seguimiento")
+        .select("contenido_id")
+        .eq("usuario_id", studentId)
+        .in("contenido_id", allTeacherContentIds);
+      const seguidosIds = (segData || []).map((s: any) => s.contenido_id);
+
+      // Get names of followed content
+      contenidosSeguidosNombres = (contData || [])
+        .filter((c: any) => seguidosIds.includes(c.id))
+        .map((c: any) => c.titulo);
+
+      if (seguidosIds.length > 0) {
+        contenidosData = await getContentProgressForUserByContentIds(studentId, seguidosIds);
+      }
+    }
+  } catch (e) {
+    console.error('Error computing content progress for student detail', e);
+  }
+
   return {
     usuario_id: studentId,
     display_name: profile.display_name,
     email: profile.email,
     pruebas: pruebasData,
     lecciones: leccionesData,
+    contenidos: contenidosData,
+    contenidos_seguidos_nombres: contenidosSeguidosNombres,
     evolucion_puntajes: evolucionPuntajes,
   };
 }
@@ -394,43 +527,63 @@ export async function getAnalyticsByTeacher(
   // Obtener estudiantes
   const students = await getStudentsByTeacher(teacherId, isAdmin);
   const totalEstudiantes = students.length;
+  // Set de IDs de estudiantes válidos (para filtrar resultados/progresos)
+  const validStudentIds = new Set(students.map(s => s.usuario_id));
 
-  // Obtener pruebas (todas si es admin, solo del profesor si no)
-  let pruebasQuery = supabase
-    .from("prueba")
-    .select("id, titulo");
-  
+  // Obtener lecciones del profesor (para buscar pruebas en ellas)
+  let leccionIdsForAnalytics: number[] = [];
   if (!isAdmin) {
-    pruebasQuery = pruebasQuery.eq("created_by", teacherId);
+    const { data: leccionesTeacher, error: lecTeacherErr } = await supabase
+      .from("leccion")
+      .select("id")
+      .eq("created_by", teacherId);
+    if (lecTeacherErr) throw lecTeacherErr;
+    leccionIdsForAnalytics = (leccionesTeacher || []).map((l) => l.id);
   }
 
-  const { data: pruebas, error: pruebasError } = await pruebasQuery;
+  // Obtener pruebas (todas si es admin, las de las lecciones del profesor si no)
+  let pruebas: any[] = [];
+  if (isAdmin) {
+    const { data, error } = await supabase.from("prueba").select("id, titulo");
+    if (error) throw error;
+    pruebas = data || [];
+  } else if (leccionIdsForAnalytics.length > 0) {
+    const { data, error } = await supabase
+      .from("prueba")
+      .select("id, titulo")
+      .in("leccion_id", leccionIdsForAnalytics);
+    if (error) throw error;
+    pruebas = data || [];
+  }
 
-  if (pruebasError) throw pruebasError;
-
-  const pruebaIds = (pruebas || []).map((p) => p.id);
+  const pruebaIds = pruebas.map((p: any) => p.id);
 
   // Obtener resultados de pruebas
-  let resultadosQuery = supabase
-    .from("resultado_prueba")
-    .select("*")
-    .in("prueba_id", pruebaIds);
+  let resultados: any[] = [];
+  if (pruebaIds.length > 0) {
+    let resultadosQuery = supabase
+      .from("resultado_prueba")
+      .select("*")
+      .in("prueba_id", pruebaIds);
 
-  if (dateRange?.inicio) {
-    resultadosQuery = resultadosQuery.gte("completed_at", dateRange.inicio);
+    if (dateRange?.inicio) {
+      resultadosQuery = resultadosQuery.gte("completed_at", dateRange.inicio);
+    }
+    if (dateRange?.fin) {
+      resultadosQuery = resultadosQuery.lte("completed_at", dateRange.fin);
+    }
+
+    const { data: resultadosData, error: resultadosError } = await resultadosQuery;
+
+    if (resultadosError) throw resultadosError;
+    // Solo incluir resultados de estudiantes válidos (seguidores para profesor)
+    resultados = (resultadosData || []).filter(r => validStudentIds.has(r.usuario_id));
   }
-  if (dateRange?.fin) {
-    resultadosQuery = resultadosQuery.lte("completed_at", dateRange.fin);
-  }
-
-  const { data: resultados, error: resultadosError } = await resultadosQuery;
-
-  if (resultadosError) throw resultadosError;
 
   // Calcular métricas por prueba
   const pruebasMetricas: AnalyticsData["pruebas_mejor_desempeno"] = [];
   for (const prueba of pruebas || []) {
-    const resultadosPrueba = (resultados || []).filter(
+    const resultadosPrueba = resultados.filter(
       (r) => r.prueba_id === prueba.id
     );
     if (resultadosPrueba.length === 0) continue;
@@ -458,13 +611,13 @@ export async function getAnalyticsByTeacher(
     .slice(0, 5);
 
   // Calcular promedios generales
-  const totalResultados = resultados?.length || 0;
+  const totalResultados = resultados.length;
   const promedioPuntajes =
     totalResultados > 0
-      ? resultados!.reduce((sum, r) => sum + (r.puntaje_obtenido || 0), 0) /
+      ? resultados.reduce((sum: number, r: any) => sum + (r.puntaje_obtenido || 0), 0) /
         totalResultados
       : 0;
-  const totalAprobados = resultados?.filter((r) => r.aprobado).length || 0;
+  const totalAprobados = resultados.filter((r: any) => r.aprobado).length;
   const tasaAprobacion =
     totalResultados > 0 ? (totalAprobados / totalResultados) * 100 : 0;
   const tasaReprobacion = 100 - tasaAprobacion;
@@ -483,16 +636,21 @@ export async function getAnalyticsByTeacher(
   if (leccionesError) throw leccionesError;
 
   const leccionIds = (lecciones || []).map((l) => l.id);
-  const { data: progresos, error: progresosError } = await supabase
-    .from("progreso")
-    .select("leccion_id")
-    .in("leccion_id", leccionIds)
-    .eq("completado", true);
+  let progresos: any[] = [];
+  if (leccionIds.length > 0) {
+    const { data: progresosData, error: progresosError } = await supabase
+      .from("progreso")
+      .select("leccion_id, usuario_id")
+      .in("leccion_id", leccionIds)
+      .eq("completado", true);
 
-  if (progresosError) throw progresosError;
+    if (progresosError) throw progresosError;
+    // Solo incluir progresos de estudiantes válidos (seguidores para profesor)
+    progresos = (progresosData || []).filter(p => validStudentIds.has(p.usuario_id));
+  }
 
   const leccionesCompletadas: { [key: number]: number } = {};
-  (progresos || []).forEach((p) => {
+  progresos.forEach((p: any) => {
     leccionesCompletadas[p.leccion_id || 0] =
       (leccionesCompletadas[p.leccion_id || 0] || 0) + 1;
   });

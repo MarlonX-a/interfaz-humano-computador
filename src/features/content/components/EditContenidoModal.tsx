@@ -1,11 +1,9 @@
-import React, { useRef, useEffect } from "react";
+import { useRef, useEffect } from "react";
 import { useTranslation } from 'react-i18next';
 import { X } from "lucide-react";
-import toast from "react-hot-toast";
-import type { Leccion } from "@/shared/types";
 import CreateLessonModal from "./CreateLessonModal";
 import SlideEditor from "./SlideEditor";
-import MultiMediaUploader from "./MultiMediaUploader";
+import MultiMediaUploader from "@/shared/components/MultiMediaUploader";
 import { useEditContenido } from "@/features/content/hooks/useEditContenido";
 
 interface EditContenidoModalProps {
@@ -348,7 +346,7 @@ export default function EditContenidoModal({
                           onMouseEnter={() => hook.setTagActiveIndex(i)}
                           onClick={() => hook.insertTagSuggestion(tag)}
                         >
-                          {t}
+                          {tag}
                         </button>
                       ))}
                     </div>

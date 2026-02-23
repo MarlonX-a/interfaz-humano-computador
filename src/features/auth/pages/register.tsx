@@ -73,6 +73,10 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
 
     setSubmitting(true);
     try {
+      // If user selected teacher, register as student with pending request
+      const effectiveRole = form.role === 'teacher' ? 'student' : form.role;
+      const roleRequested = form.role === 'teacher' ? 'teacher' : null;
+
       const { data: signUpData } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
@@ -81,7 +85,8 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
             firstName: form.firstName,
             lastName: form.lastName,
             displayName: `${form.firstName} ${form.lastName}`.trim(),
-            role: form.role, // Pass role to trigger so it creates profile with correct role
+            role: effectiveRole,
+            roleRequested: roleRequested,
           },
         },
       });
@@ -94,8 +99,8 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
       const payloadProfile = {
         id: userId,
         email: form.email,
-        role: form.role, // Allow direct role assignment (student, teacher, other) for testing
-        role_requested: null, // No longer needed since we assign directly
+        role: effectiveRole,
+        role_requested: roleRequested,
         first_name: form.firstName || null,
         last_name: form.lastName || null,
         display_name: `${form.firstName} ${form.lastName}`.trim() || null,
@@ -117,6 +122,14 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
           try { (window as any).speak?.(msg); } catch (_) {}
           setSubmitting(false);
           return;
+        }
+
+        // Show role pending message if teacher was requested
+        if (roleRequested === 'teacher') {
+          const pendingMsg = t('register.teacherPendingApproval') || 'Te has registrado como estudiante. Tu solicitud para ser profesor será revisada por un administrador.';
+          toast.success(pendingMsg, { duration: 6000 });
+          try { (window as any).triggerVisualAlert?.({ message: pendingMsg }); } catch (_) {}
+          try { (window as any).speak?.(pendingMsg); } catch (_) {}
         }
       } else {
         // Si no hay sesión, confiamos en el trigger DB para crear el profile después del insert en auth.users,
@@ -322,6 +335,11 @@ export default function Register({ highContrast = false, textSizeLarge: _textSiz
               <option value="teacher">{t("register.roles.teacher")}</option>
               <option value="other">{t("register.roles.other")}</option>
             </select>
+            {form.role === 'teacher' && (
+              <p className={`text-sm mt-1 ${highContrast ? 'text-yellow-300' : 'text-amber-600'}`}>
+                {t('register.teacherApprovalNote') || 'El rol de profesor requiere aprobación de un administrador. Serás registrado como estudiante hasta que se apruebe tu solicitud.'}
+              </p>
+            )}
           </div>
 
           {/* Términos */}

@@ -613,50 +613,8 @@ export default function LessonDetailPage() {
                         )
                       )}
                       
-                      {/* Renderizar media si existe */}
-                      {seccion.contenido.media_url && seccion.contenido.media_type && (
-                        <div className="mt-6">
-                          {seccion.contenido.media_type === 'video' && (
-                            <video
-                              src={seccion.contenido.media_url}
-                              controls
-                              className="w-full rounded-lg"
-                            />
-                          )}
-                          {seccion.contenido.media_type === 'audio' && (
-                            <audio
-                              src={seccion.contenido.media_url}
-                              controls
-                              className="w-full"
-                            />
-                          )}
-                          {seccion.contenido.media_type === 'pdf' && (
-                            <iframe
-                              src={seccion.contenido.media_url}
-                              className="w-full h-[600px] rounded-lg border"
-                              title="PDF Viewer"
-                            />
-                          )}
-                          {seccion.contenido.media_type === 'embed' && (
-                            <iframe
-                              src={seccion.contenido.media_url}
-                              className="w-full h-[400px] rounded-lg border"
-                              title="Embedded Content"
-                              allowFullScreen
-                            />
-                          )}
-                          {seccion.contenido.media_type === 'image' && (
-                            <img
-                              src={seccion.contenido.media_url}
-                              alt={seccion.contenido.titulo}
-                              className="w-full rounded-lg"
-                            />
-                          )}
-                        </div>
-                      )}
-
-                      {/* Renderizar múltiples archivos media si existen */}
-                      {seccion.contenido.media_files && Array.isArray(seccion.contenido.media_files) && seccion.contenido.media_files.length > 0 && (
+                      {/* Renderizar media: preferir media_files (array), fallback a legacy media_url */}
+                      {seccion.contenido.media_files && Array.isArray(seccion.contenido.media_files) && seccion.contenido.media_files.length > 0 ? (
                         <div className="mt-6 space-y-4">
                           <h4 className="font-medium text-gray-700">{t('lesson.mediaFiles', { defaultValue: 'Archivos multimedia' })}</h4>
                           {(seccion.contenido.media_files as Array<{ url: string; type: string; name?: string }>).map((media, mediaIndex) => (
@@ -687,7 +645,26 @@ export default function LessonDetailPage() {
                             </div>
                           ))}
                         </div>
-                      )}
+                      ) : seccion.contenido.media_url && seccion.contenido.media_type ? (
+                        /* Fallback: legacy single media_url field */
+                        <div className="mt-6">
+                          {seccion.contenido.media_type === 'video' && (
+                            <video src={seccion.contenido.media_url} controls className="w-full rounded-lg" />
+                          )}
+                          {seccion.contenido.media_type === 'audio' && (
+                            <audio src={seccion.contenido.media_url} controls className="w-full" />
+                          )}
+                          {seccion.contenido.media_type === 'pdf' && (
+                            <iframe src={seccion.contenido.media_url} className="w-full h-[600px] rounded-lg border" title="PDF Viewer" />
+                          )}
+                          {seccion.contenido.media_type === 'embed' && (
+                            <iframe src={seccion.contenido.media_url} className="w-full h-[400px] rounded-lg border" title="Embedded Content" allowFullScreen />
+                          )}
+                          {seccion.contenido.media_type === 'image' && (
+                            <img src={seccion.contenido.media_url} alt={seccion.contenido.titulo} className="w-full rounded-lg" />
+                          )}
+                        </div>
+                      ) : null}
                       
                       {/* Modelo RA asociado al contenido */}
                       {seccionModeloCache.get(seccion.id) && (

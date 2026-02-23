@@ -25,6 +25,9 @@ export async function listUsers(filters?: UserFilters): Promise<UserWithProfile[
   if (filters?.created_to) {
     query = query.lte('created_at', filters.created_to);
   }
+  if (filters?.has_pending_request === true) {
+    query = query.not('role_requested', 'is', null);
+  }
 
   const { data: profiles, error } = await query;
 
@@ -225,5 +228,72 @@ export async function updateUserRole(userId: string, newRole: string): Promise<U
  */
 export async function toggleUserStatus(userId: string, active: boolean): Promise<UserWithProfile> {
   return updateUser(userId, { is_verified: active });
+}
+
+/**
+ * Aprueba la solicitud de rol pendiente de un usuario
+ * Cambia el role al role_requested y limpia role_requested
+ */
+export async function approveRoleRequest(userId: string): Promise<void> {
+  // Obtener el perfil actual para saber qué rol fue solicitado
+  const { data: profile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('role_requested')
+    .eq('id', userId)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!profile?.role_requested) throw new Error('No hay solicitud de rol pendiente');
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      role: profile.role_requested,
+      role_requested: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) throw error;
+}
+
+/**
+ * Rechaza la solicitud de rol pendiente de un usuario
+ * Limpia role_requested dejando el rol actual intacto
+ */
+export async function rejectRoleRequest(userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({
+      role_requested: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId);
+
+  if (error) throw error;
+}
+
+/**
+ * Lista usuarios con solicitudes de rol pendientes
+ */
+export async function listPendingRoleRequests(): Promise<UserWithProfile[]> {
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .not('role_requested', 'is', null)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (profiles || []).map((profile: Profile) => ({
+    id: profile.id,
+    email: profile.email || '',
+    email_confirmed_at: null,
+    created_at: profile.created_at,
+    updated_at: profile.updated_at,
+    last_sign_in_at: null,
+    profile: profile,
+    is_active: profile.is_verified || false,
+  }));
 }
 

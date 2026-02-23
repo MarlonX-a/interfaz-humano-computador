@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Edit, Trash2, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, CheckCircle, XCircle } from 'lucide-react';
 import type { UserWithProfile } from '@/shared/types';
 
 interface UsersTableProps {
@@ -8,6 +8,8 @@ interface UsersTableProps {
   loading?: boolean;
   onEdit: (user: UserWithProfile) => void;
   onDelete: (user: UserWithProfile) => void;
+  onApproveRole?: (user: UserWithProfile) => void;
+  onRejectRole?: (user: UserWithProfile) => void;
 }
 
 type SortField = 'email' | 'name' | 'role' | 'status' | 'created_at';
@@ -15,7 +17,7 @@ type SortDirection = 'asc' | 'desc';
 
 const ITEMS_PER_PAGE = 10;
 
-export default function UsersTable({ users, loading, onEdit, onDelete }: UsersTableProps) {
+export default function UsersTable({ users, loading, onEdit, onDelete, onApproveRole, onRejectRole }: UsersTableProps) {
   const { t } = useTranslation();
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState<SortField>('created_at');
@@ -194,9 +196,16 @@ export default function UsersTable({ users, loading, onEdit, onDelete }: UsersTa
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {getRoleLabel(user.profile?.role)}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                        {getRoleLabel(user.profile?.role)}
+                      </span>
+                      {user.profile?.role_requested && (
+                        <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">
+                          {t('admin.users.pendingRole', { role: getRoleLabel(user.profile.role_requested) }) || `Solicita: ${getRoleLabel(user.profile.role_requested)}`}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
@@ -222,6 +231,24 @@ export default function UsersTable({ users, loading, onEdit, onDelete }: UsersTa
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
+                      {user.profile?.role_requested && onApproveRole && onRejectRole && (
+                        <>
+                          <button
+                            onClick={() => onApproveRole(user)}
+                            className="text-green-600 hover:text-green-900 p-1 rounded hover:bg-green-50 transition"
+                            title={t('admin.users.actions.approveRole') || 'Aprobar rol'}
+                          >
+                            <CheckCircle size={18} />
+                          </button>
+                          <button
+                            onClick={() => onRejectRole(user)}
+                            className="text-amber-600 hover:text-amber-900 p-1 rounded hover:bg-amber-50 transition"
+                            title={t('admin.users.actions.rejectRole') || 'Rechazar solicitud'}
+                          >
+                            <XCircle size={18} />
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => onEdit(user)}
                         className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition"

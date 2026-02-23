@@ -41,6 +41,7 @@ export interface UserFilters {
   role?: string; // 'student' | 'teacher' | 'admin'
   is_verified?: boolean;
   is_active?: boolean;
+  has_pending_request?: boolean;
   created_from?: string; // fecha ISO
   created_to?: string; // fecha ISO
 }

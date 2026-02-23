@@ -8,7 +8,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   // Contar usuarios por rol
   const { data: usersByRole, error: usersError } = await supabase
     .from('profiles')
-    .select('role');
+    .select('role, role_requested');
 
   if (usersError) throw usersError;
 
@@ -16,6 +16,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const total_admins = usersByRole?.filter((u) => u.role === 'admin').length || 0;
   const total_teachers = usersByRole?.filter((u) => u.role === 'teacher').length || 0;
   const total_students = usersByRole?.filter((u) => u.role === 'student').length || 0;
+  const pending_role_requests = usersByRole?.filter((u) => u.role_requested).length || 0;
 
   // Contar lecciones
   const { count: lessonsCount, error: lessonsError } = await supabase
@@ -84,6 +85,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     total_pruebas: pruebasCount || 0,
     total_resultados: resultadosCount || 0,
     total_progreso: progresoCount || 0,
+    pending_role_requests,
     approval_rate: Math.round(approval_rate * 100) / 100,
     monthly_activity: monthlyActivity || 0,
   };

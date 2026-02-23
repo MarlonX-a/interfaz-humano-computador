@@ -1,11 +1,11 @@
-import React, { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useTranslation } from 'react-i18next';
-import { X, Upload, FileUp, Sparkles, Plus, Edit, Trash2, BookOpen, Presentation, Video } from "lucide-react";
+import { X, Upload, FileUp, Sparkles, Plus, Edit, Trash2, BookOpen, Presentation, Video, Image, Link } from "lucide-react";
 import type { Leccion } from "@/shared/types";
-import QuickModelModal from "./QuickModelModal";
-import EditPruebaModal from "./EditPruebaModal";
+import QuickModelModal from "@/features/models3d/components/QuickModelModal";
+import EditPruebaModal from "@/features/pruebas/components/EditPruebaModal";
 import SlideEditor from "./SlideEditor";
-import MultiMediaUploader from "./MultiMediaUploader";
+import MultiMediaUploader from "@/shared/components/MultiMediaUploader";
 import { useCreateLesson } from "@/features/content/hooks/useCreateLesson";
 
 export default function CreateLessonModal({
@@ -26,6 +26,7 @@ export default function CreateLessonModal({
   const { t } = useTranslation();
   const modalRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── Toda la lógica vive en el hook ──
   const {
@@ -33,6 +34,8 @@ export default function CreateLessonModal({
     descripcion, setDescripcion,
     nivel, setNivel,
     thumbnail_url, setThumbnailUrl,
+    thumbnailUploading,
+    handleThumbnailUpload,
     isLoading,
     modelFile, setModelFile,
     modelName, setModelName,
@@ -55,6 +58,7 @@ export default function CreateLessonModal({
     handlePruebaUpdated,
     handlePruebaModalClose,
     handleQuickModelCreated,
+    handleDeleteModelo,
   } = useCreateLesson({ open, leccion, onClose, onCreated, onUpdated });
 
   // ── Keyboard & focus (UI-only) ──
@@ -246,12 +250,64 @@ export default function CreateLessonModal({
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">{t('createLesson.fields.thumbnail')}</label>
-                    <input 
-                      value={thumbnail_url} 
-                      onChange={(e) => setThumbnailUrl(e.target.value)} 
-                      className="w-full border border-gray-300 px-4 py-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all" 
-                      placeholder={t('resourcePlaceholder') || 'https://...'}
-                    />
+                    
+                    {/* Preview */}
+                    {thumbnail_url && (
+                      <div className="relative mb-2 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+                        <img
+                          src={thumbnail_url}
+                          alt="Thumbnail preview"
+                          className="w-full h-24 object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setThumbnailUrl("")}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 transition-colors"
+                          title={t('createLesson.fields.removeThumbnail') || 'Eliminar thumbnail'}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Link input */}
+                    <div className="flex gap-1.5">
+                      <div className="relative flex-1">
+                        <Link size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          value={thumbnail_url}
+                          onChange={(e) => setThumbnailUrl(e.target.value)}
+                          className="w-full border border-gray-300 pl-8 pr-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
+                          placeholder={t('createLesson.placeholders.thumbnailUrl') || 'https://...'}
+                        />
+                      </div>
+                      <input
+                        ref={thumbnailInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleThumbnailUpload(file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => thumbnailInputRef.current?.click()}
+                        disabled={thumbnailUploading}
+                        className="flex items-center gap-1 px-2.5 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm disabled:opacity-50"
+                        title={t('createLesson.fields.uploadThumbnail') || 'Subir imagen'}
+                      >
+                        {thumbnailUploading ? (
+                          <span className="animate-spin h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full" />
+                        ) : (
+                          <Image size={16} />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">{t('createLesson.fields.thumbnailHint') || 'Pega un enlace o sube una imagen (JPG, PNG, WebP, GIF, máx 5 MB)'}</p>
                   </div>
                 </div>
               </>
@@ -291,6 +347,56 @@ export default function CreateLessonModal({
                 <p className="text-sm text-gray-600">
                   {t('createLesson.modelDescription', { defaultValue: 'Sube un modelo 3D (.glb, .gltf, .usdz) o genera uno con IA para experiencias de realidad aumentada.' })}
                 </p>
+
+                {/* Modelos existentes vinculados a esta lección */}
+                {availableModelos.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <FileUp size={16} className="text-purple-600" />
+                      {t('createLesson.existingModels', { defaultValue: 'Modelos vinculados a esta lección' })}
+                      <span className="text-xs text-gray-400">({availableModelos.length})</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {availableModelos.map((modelo) => (
+                        <div key={modelo.id} className="border rounded-xl p-3 bg-purple-50 border-purple-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-purple-700">{modelo.nombre_modelo}</span>
+                              {modelo.tipo && <span className="text-xs text-purple-500 bg-purple-100 px-2 py-0.5 rounded-full">{modelo.tipo}</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {modelo.archivo_url && (
+                                <a 
+                                  className="text-sm text-purple-600 hover:text-purple-700 underline" 
+                                  target="_blank" 
+                                  rel="noreferrer" 
+                                  href={modelo.archivo_url}
+                                >
+                                  {t('createLesson.openInNewTab') || 'Abrir en nueva pestaña'}
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteModelo(modelo.id)}
+                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title={t('createLesson.deleteModel') || 'Eliminar modelo'}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                          {modelo.archivo_url && (
+                            <ModelPreview src={modelo.archivo_url} alt={modelo.nombre_modelo} />
+                          )}
+                          {!modelo.archivo_url && (
+                            <p className="text-xs text-gray-400 italic">{t('createLesson.noModelUrl', { defaultValue: 'Sin archivo de modelo disponible' })}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <hr className="border-gray-200" />
+                  </div>
+                )}
               
                 {/* Botón de selección de archivo estilizado */}
                 <div className="space-y-3">

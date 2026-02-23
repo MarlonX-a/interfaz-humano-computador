@@ -52,41 +52,91 @@ export async function listContenidosByTeacher(userId: string, isAdmin: boolean =
       contenidoLecciones = clData || [];
     }
   } else {
-    // Si es profesor, obtener contenidos asociados a sus lecciones
-    if (leccionIds.length === 0) return [];
+    // Si es profesor, obtener contenidos que:
+    // 1) Fueron creados por él (created_by)
+    // 2) Están asociados a sus lecciones a través de contenido_leccion
 
-    // Obtener contenidos asociados a esas lecciones a través de contenido_leccion
-    const { data: clData, error: clError } = await supabase
-      .from("contenido_leccion")
-      .select("contenido_id, leccion_id, orden")
-      .in("leccion_id", leccionIds);
-
-    if (clError) throw clError;
-    contenidoLecciones = clData || [];
-
-    const contenidoIds = Array.from(new Set((contenidoLecciones || []).map((cl) => cl.contenido_id)));
-
-    if (contenidoIds.length === 0) return [];
-
-    // Obtener los contenidos
-    const { data: contenidosData, error: contenidosError } = await supabase
+    // 1) Contenidos creados directamente por el profesor
+    const { data: contenidosPropios, error: propiosError } = await supabase
       .from("contenido")
       .select("*")
-      .in("id", contenidoIds)
+      .eq("created_by", userId)
       .order("orden", { ascending: true, nullsFirst: false });
 
-    if (contenidosError) throw contenidosError;
-    contenidos = contenidosData || [];
+    if (propiosError) throw propiosError;
+
+    const contenidosPropiosIds = new Set((contenidosPropios || []).map((c) => c.id));
+
+    // 2) Contenidos asociados a sus lecciones
+    let contenidosViaLecciones: any[] = [];
+    if (leccionIds.length > 0) {
+      const { data: clData, error: clError } = await supabase
+        .from("contenido_leccion")
+        .select("contenido_id, leccion_id, orden")
+        .in("leccion_id", leccionIds);
+
+      if (clError) throw clError;
+      contenidoLecciones = clData || [];
+
+      const contenidoIdsViaLecciones = Array.from(
+        new Set((contenidoLecciones || []).map((cl) => cl.contenido_id))
+      ).filter((id) => !contenidosPropiosIds.has(id)); // evitar duplicados
+
+      if (contenidoIdsViaLecciones.length > 0) {
+        const { data: cData, error: cError } = await supabase
+          .from("contenido")
+          .select("*")
+          .in("id", contenidoIdsViaLecciones)
+          .order("orden", { ascending: true, nullsFirst: false });
+
+        if (cError) throw cError;
+        contenidosViaLecciones = cData || [];
+      }
+    }
+
+    contenidos = [...(contenidosPropios || []), ...contenidosViaLecciones];
+
+    // Si todavía no tenemos las relaciones contenido_leccion para los propios, obtenerlas
+    if (contenidosPropios && contenidosPropios.length > 0) {
+      const propiosIds = contenidosPropios.map((c) => c.id);
+      const { data: clPropios, error: clPropiosError } = await supabase
+        .from("contenido_leccion")
+        .select("contenido_id, leccion_id, orden")
+        .in("contenido_id", propiosIds);
+
+      if (clPropiosError) throw clPropiosError;
+
+      // Merge sin duplicados
+      const existingKeys = new Set(
+        contenidoLecciones.map((cl: any) => `${cl.contenido_id}-${cl.leccion_id}`)
+      );
+      for (const cl of clPropios || []) {
+        const key = `${cl.contenido_id}-${cl.leccion_id}`;
+        if (!existingKeys.has(key)) {
+          contenidoLecciones.push(cl);
+          existingKeys.add(key);
+        }
+      }
+    }
+
+    if (contenidos.length === 0) return [];
   }
 
   // Obtener todas las lecciones asociadas
-  // Si es admin, obtener todas las lecciones del sistema; si no, solo las del profesor
+  // Si es admin, obtener todas las lecciones del sistema; si no, las referenciadas por los contenidos
   let todasLeccionesQuery = supabase
     .from("leccion")
     .select("id, titulo, descripcion, nivel, thumbnail_url, created_by");
   
-  if (!isAdmin && leccionIds.length > 0) {
-    todasLeccionesQuery = todasLeccionesQuery.in("id", leccionIds);
+  if (!isAdmin) {
+    // Reunir todos los leccion_id presentes en contenidoLecciones + las del profesor
+    const allLeccionIds = Array.from(new Set([
+      ...leccionIds,
+      ...contenidoLecciones.map((cl: any) => cl.leccion_id),
+    ]));
+    if (allLeccionIds.length > 0) {
+      todasLeccionesQuery = todasLeccionesQuery.in("id", allLeccionIds);
+    }
   }
   
   const { data: todasLecciones, error: leccionesDataError } = await todasLeccionesQuery;

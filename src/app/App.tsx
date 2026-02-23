@@ -34,6 +34,7 @@ import LessonDetailPage from "@/features/lessons/pages/lesson-detail";
 import PruebaPage from '@/features/pruebas/pages/prueba';
 import AdminUsers from "@/features/admin/pages/adminUsers";
 import AdminDashboard from "@/features/admin/pages/adminDashboard";
+import AdminModelos from "@/features/admin/pages/modelos";
 import StudentDashboard from '@/features/student/pages/studentDashboard';
 
 function App() {

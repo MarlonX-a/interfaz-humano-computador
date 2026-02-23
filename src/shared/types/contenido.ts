@@ -26,6 +26,8 @@ export interface Contenido {
   duracion_estimada?: number | null;
   // Múltiples archivos de media
   media_files?: MediaFile[] | null;
+  // Creador del contenido
+  created_by?: string | null;
 }
 
 /** Tabla intermedia: contenido_leccion (relación muchos-a-muchos) */

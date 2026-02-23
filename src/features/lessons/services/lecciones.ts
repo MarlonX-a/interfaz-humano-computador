@@ -4,7 +4,7 @@ import type { Leccion, LeccionInsert, LeccionUpdate } from "@/shared/types";
 export async function listLecciones(): Promise<Leccion[]> {
   const { data, error } = await supabase
     .from("leccion")
-    .select("id,titulo,descripcion,nivel,thumbnail_url,created_by")
+    .select("*")
     .order("titulo");
 
   if (error) throw error;
@@ -15,7 +15,7 @@ export async function createLeccion(payload: LeccionInsert): Promise<Leccion> {
   const { data, error } = await supabase
     .from("leccion")
     .insert([payload])
-    .select("id,titulo,descripcion,nivel,thumbnail_url,created_by")
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -41,7 +41,7 @@ export async function updateLeccion(id: number, payload: LeccionUpdate): Promise
     .from("leccion")
     .update(payload)
     .eq("id", id)
-    .select("id,titulo,descripcion,nivel,thumbnail_url,created_by")
+    .select("*")
     .single();
 
   if (error) throw error;
@@ -52,16 +52,16 @@ export async function updateLeccion(id: number, payload: LeccionUpdate): Promise
  * Elimina una lección si no tiene contenidos asociados
  */
 export async function deleteLeccion(id: number): Promise<void> {
-  // Verificar si hay contenidos asociados
-  const { data: contenidos, error: checkError } = await supabase
-    .from("contenido")
-    .select("id")
-    .eq("leccion_id", id)
-    .limit(1);
+  // Verificar si hay contenidos asociados (legacy FK o join table)
+  const [legacyCheck, joinCheck] = await Promise.all([
+    supabase.from("contenido").select("id").eq("leccion_id", id).limit(1),
+    supabase.from("contenido_leccion").select("id").eq("leccion_id", id).limit(1),
+  ]);
 
-  if (checkError) throw checkError;
+  if (legacyCheck.error) throw legacyCheck.error;
+  if (joinCheck.error) throw joinCheck.error;
 
-  if (contenidos && contenidos.length > 0) {
+  if ((legacyCheck.data && legacyCheck.data.length > 0) || (joinCheck.data && joinCheck.data.length > 0)) {
     throw new Error("No se puede eliminar la lección porque tiene contenidos asociados");
   }
 
@@ -108,7 +108,7 @@ export async function getSiguienteLeccion(leccionId: number): Promise<Leccion | 
   // Obtener datos de la siguiente lección
   const { data: leccion, error: lecError } = await supabase
     .from("leccion")
-    .select("id,titulo,descripcion,nivel,thumbnail_url,created_by")
+    .select("*")
     .eq("id", siguienteRelacion[0].leccion_id)
     .single();
 

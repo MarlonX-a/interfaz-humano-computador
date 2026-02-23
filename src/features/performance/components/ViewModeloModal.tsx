@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ModeloRA, Leccion } from '../types/db';
+import type { ModeloRA, Leccion } from '@/shared/types';
 import { X } from 'lucide-react';
-import { listLecciones } from '../lib/data/lecciones';
+import { listLecciones } from '@/features/lessons/services/lecciones';
 
 interface ViewModeloModalProps {
   modelo: ModeloRA;
